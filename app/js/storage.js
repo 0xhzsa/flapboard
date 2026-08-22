@@ -88,6 +88,7 @@ export function loadSettings() {
 }
 
 export function saveSettings(s) {
+  if (typeof window !== "undefined" && window.__NO_SAVE) return; // demo mode: session-only
   try {
     localStorage.setItem(KEY, JSON.stringify(s));
   } catch (e) {}

@@ -341,7 +341,8 @@ setInterval(() => refreshNowPlaying(), 90 * 1000);
 /* ---------- controls ---------- */
 const drawer = initDrawer(settings, {
   onChange: () => {
-    document.body.dataset.theme = settings.theme;
+document.body.dataset.theme = settings.theme;
+if (DEMO) window.__NO_SAVE = true; // public visitors can play freely, nothing persists
     applySpeed();
     sound.enabled = !!settings.sound;
     rebuild();
@@ -357,7 +358,6 @@ const drawer = initDrawer(settings, {
 
 $("btn-prev").onclick = prev;
 $("btn-next").onclick = next;
-if (DEMO) $("btn-setup").hidden = true;
 
 $("btn-sound").onclick = () => {
   settings.sound = !settings.sound;
@@ -376,7 +376,6 @@ $("board").ondblclick = toggleFullscreen;
 
 window.addEventListener("keydown", (e) => {
   if (e.target && ["INPUT", "TEXTAREA", "SELECT"].includes(e.target.tagName)) return;
-  if (DEMO && ["s", "S"].includes(e.key)) return; // kiosk demo: no settings
   switch (e.key) {
     case "ArrowRight": next(); break;
     case "ArrowLeft": prev(); break;
