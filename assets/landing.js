@@ -4,8 +4,15 @@ const frame = document.getElementById("boardFrame");
 if (frame) {
   const load = () => {
     if (frame.src) return;
-    frame.src = "/app/?demo=1&quiet=1&dwell=6";
-    frame.addEventListener("load", () => frame.classList.add("on"), { once: true });
+    frame.src = "app/?demo=1&quiet=1&dwell=6";
+    frame.addEventListener(
+      "load",
+      () => {
+        // let the boot wave finish before revealing, so first paint is beautiful
+        setTimeout(() => frame.classList.add("on"), 2600);
+      },
+      { once: true }
+    );
   };
   if ("IntersectionObserver" in window) {
     const io = new IntersectionObserver(
