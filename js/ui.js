@@ -24,7 +24,7 @@ export function setWeatherStatus(text) {
 }
 
 /** Wire every control in the drawer to the settings object. */
-export function initDrawer(settings, { onChange, onGeolocate }) {
+export function initDrawer(settings, { onChange }) {
   const bind = (fn) => () => {
     fn();
     saveSettings(settings);
@@ -63,7 +63,9 @@ export function initDrawer(settings, { onChange, onGeolocate }) {
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         try {
-          const r = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${pos.coords.latitude}&longitude=${pos.coords.longitude}&localityLanguage=en`);
+          const r = await fetch(
+            `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${pos.coords.latitude}&longitude=${pos.coords.longitude}&localityLanguage=en`
+          );
           const j = await r.json();
           settings.city = (j.city || j.locality || j.principalSubdivision || "").trim();
         } catch (e) {
@@ -83,34 +85,72 @@ export function initDrawer(settings, { onChange, onGeolocate }) {
   };
 
   // slides
-  const map = { "chk-clock": "clock", "chk-weather": "weather", "chk-quote": "quote", "chk-markets": "markets", "chk-messages": "messages" };
-  for (const [id, key] of Object.entries(map)) {
+  const slideMap = {
+    "chk-clock": "clock",
+    "chk-weather": "weather",
+    "chk-sunmoon": "sunmoon",
+    "chk-quote": "quote",
+    "chk-news": "news",
+    "chk-markets": "markets",
+    "chk-sports": "sports",
+    "chk-agenda": "agenda",
+    "chk-countdown": "countdown",
+    "chk-messages": "messages",
+  };
+  for (const [id, key] of Object.entries(slideMap)) {
     const el = $(id);
-    el.checked = !!settings.slides[key];
+    el.checked = !!(settings.slides[key] ?? false);
     el.onchange = bind(() => (settings.slides[key] = el.checked));
   }
 
+  // markets / sports
+  const coins = $("inp-coins");
+  coins.value = settings.coins;
+  coins.onchange = bind(() => (settings.coins = coins.value.trim() || "bitcoin"));
+
+  const league = $("sel-league");
+  league.value = settings.league || "nba";
+  league.onchange = bind(() => (settings.league = league.value));
+
+  // messages
   const msgs = $("txt-messages");
   msgs.value = settings.messages.join("\n");
   msgs.onchange = bind(() => {
     settings.messages = msgs.value.split("\n").map((s) => s.trim()).filter(Boolean).slice(0, 8);
   });
 
-  const coins = $("inp-coins");
-  coins.value = settings.coins;
-  coins.onchange = bind(() => (settings.coins = coins.value.trim() || "bitcoin"));
+  // agenda
+  const agenda = $("txt-agenda");
+  agenda.value = (settings.agenda || []).join("\n");
+  agenda.onchange = bind(() => {
+    settings.agenda = agenda.value.split("\n").map((s) => s.trim()).filter(Boolean).slice(0, 6);
+  });
+
+  // countdown
+  const cdLabel = $("inp-cd-label");
+  const cdDate = $("inp-cd-date");
+  const cd = Array.isArray(settings.countdowns) ? settings.countdowns[0] : null;
+  if (cd) {
+    cdLabel.value = cd.label || "";
+    cdDate.value = cd.date || "";
+  }
+  cdLabel.onchange = cdDate.onchange = bind(() => {
+    settings.countdowns = [{ label: cdLabel.value.trim(), date: cdDate.value }].filter((x) => x.date && x.label);
+  });
 
   // open / close
   const drawer = $("drawer");
-  const open = () => {
-    drawer.hidden = false;
-  };
-  const close = () => {
-    drawer.hidden = true;
-  };
+  const open = () => (drawer.hidden = false);
+  const close = () => (drawer.hidden = true);
   $("btn-setup").onclick = open;
   $("btn-close").onclick = close;
   $("btn-done").onclick = close;
 
-  return { open, close, get isOpen() { return !drawer.hidden; } };
+  return {
+    open,
+    close,
+    get isOpen() {
+      return !drawer.hidden;
+    },
+  };
 }

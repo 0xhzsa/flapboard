@@ -4,6 +4,8 @@ import { buildSlides, greetingSlide } from "./slides.js";
 import { quoteForHour } from "./quotes.js";
 import { cachedWeather, getWeather } from "./weather.js";
 import { cachedMarkets, fetchMarkets, fmtPrice } from "./markets.js";
+import { cachedNews, fetchNews } from "./news.js";
+import { cachedSports, fetchSports } from "./sports.js";
 import { initDrawer, renderDots, toast, setWeatherStatus } from "./ui.js";
 import { sound } from "./sound.js";
 
@@ -16,6 +18,7 @@ if (params.get("city")) settings.city = params.get("city");
 if (params.get("theme")) settings.theme = params.get("theme");
 if (params.get("units")) settings.units = params.get("units").toUpperCase() === "C" ? "C" : "F";
 if (params.get("speed")) settings.speed = params.get("speed");
+if (params.get("league")) settings.league = params.get("league");
 if (params.get("dwell")) settings.dwell = Math.min(120, Math.max(4, parseInt(params.get("dwell"), 10) || settings.dwell));
 if (params.has("quiet")) settings.sound = false;
 const lockedSlide = params.has("lock") ? params.get("lock") || "clock" : null;
@@ -41,19 +44,23 @@ sound.enabled = !!settings.sound;
 const data = {
   weather: null,
   markets: null,
+  news: null,
+  sports: null,
   quote: quoteForHour(),
 };
 {
   const wc = cachedWeather();
   if (wc) data.weather = { ...wc.data };
   data.markets = cachedMarkets();
+  data.news = cachedNews();
+  data.sports = cachedSports(settings.league);
 }
 
 let lastFetchedCity = null;
 
 async function refreshWeather(manual = false) {
   if (!settings.city) {
-    setWeatherStatus("No city set — weather slide is hidden.");
+    setWeatherStatus("No city set — weather slides stay hidden.");
     return;
   }
   setWeatherStatus("Fetching " + settings.city + "...");
@@ -85,15 +92,37 @@ async function refreshMarkets(manual = false) {
   }
 }
 
+async function refreshNews() {
+  if (!settings.slides.news && !params.has("news")) return;
+  try {
+    data.news = await fetchNews(3);
+    softRedraw();
+  } catch (e) {}
+}
+
+async function refreshSports(manual = false) {
+  if (!settings.slides.sports && !params.has("scores")) return;
+  try {
+    data.sports = await fetchSports(settings.league || "nba");
+    softRedraw();
+  } catch (e) {
+    if (manual) toast("SCORES FEED FAILED");
+  }
+}
+
 /* ---------- slide loop ---------- */
 let slides = [];
 let idx = 0;
 let timer = null;
 let paused = false;
 const dotsEl = $("dots");
+const qrOverlay = $("qr-overlay");
 
 function effectiveSettings() {
-  return sessionMessages ? { ...settings, messages: sessionMessages } : settings;
+  const eff = sessionMessages ? { ...settings, messages: sessionMessages, slides: { ...settings.slides, messages: true } } : settings;
+  if (params.has("news")) eff.slides = { ...eff.slides, news: true };
+  if (params.has("scores")) eff.slides = { ...eff.slides, sports: true };
+  return eff;
 }
 
 function rebuild() {
@@ -114,15 +143,23 @@ function rebuild() {
   if (idx >= slides.length) idx = 0;
 }
 
-function blankGrid() {
-  return Array.from({ length: 6 }, () => Array(22).fill(" "));
-}
-
 async function show(i, opts = {}) {
   clearTimeout(timer);
   idx = ((i % slides.length) + slides.length) % slides.length;
-  await board.show(slides[idx].grid, opts);
+  const slide = slides[idx];
+  await board.show(slide.grid, opts);
   renderDots(dotsEl, slides.length, idx);
+
+  // QR overlay handling
+  if (slide.overlay) {
+    const img = qrOverlay.querySelector("img");
+    const desired = "https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=2&data=" + encodeURIComponent(slide.overlay);
+    if (img.src !== desired) img.src = desired;
+    qrOverlay.hidden = false;
+  } else {
+    qrOverlay.hidden = true;
+  }
+
   updateStatus();
   scheduleNext();
 }
@@ -139,14 +176,22 @@ function prev() { show(idx - 1); }
 function togglePause(force) {
   paused = force != null ? force : !paused;
   toast(paused ? "ROTATION PAUSED" : "ROTATION RESUMED");
+  $("status-left").textContent = paused ? "PAUSED" : "FLAPBOARD";
   if (!paused) scheduleNext();
 }
 
 function softRedraw() {
-  // refresh current slide content in place (only changed tiles flip)
   rebuild();
-  board.show(slides[idx].grid);
+  const slide = slides[idx];
+  board.show(slide.grid);
   renderDots(dotsEl, slides.length, idx);
+  if (slide.overlay) {
+    const img = qrOverlay.querySelector("img");
+    img.src = "https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=2&data=" + encodeURIComponent(slide.overlay);
+    qrOverlay.hidden = false;
+  } else {
+    qrOverlay.hidden = true;
+  }
 }
 
 function updateStatus() {
@@ -163,10 +208,9 @@ function updateStatus() {
   if (settings.units === "F") { suffix = h >= 12 ? "PM" : "AM"; h = h % 12 || 12; }
   parts.push(`${String(h).padStart(2, "0")}:${String(n.getMinutes()).padStart(2, "0")}${suffix ? " " + suffix : ""}`);
   $("status-right").textContent = parts.join("   \u00B7   ");
-  $("status-left").textContent = paused ? "PAUSED" : "FLAPBOARD";
 }
 
-/* minute tick: keeps clock/quote/weather slides honest without a full cycle */
+/* minute tick keeps time-based slides honest without waiting a full cycle */
 let lastMin = -1;
 setInterval(() => {
   const n = new Date();
@@ -175,11 +219,13 @@ setInterval(() => {
   data.quote = quoteForHour(n);
   updateStatus();
   const cur = slides[idx];
-  if (cur && ["clock", "weather", "quote", "greeting"].includes(cur.id)) softRedraw();
+  if (cur && ["clock", "weather", "sunmoon", "quote", "message", "qr", "agenda"].includes(cur.id)) softRedraw();
 }, 15000);
 
 setInterval(() => refreshWeather(), 10 * 60 * 1000);
 setInterval(() => refreshMarkets(), 5 * 60 * 1000);
+setInterval(() => refreshNews(), 15 * 60 * 1000);
+setInterval(() => refreshSports(), 3 * 60 * 1000);
 
 /* ---------- controls ---------- */
 const drawer = initDrawer(settings, {
@@ -190,6 +236,8 @@ const drawer = initDrawer(settings, {
     rebuild();
     show(idx);
     if (settings.city && settings.city !== lastFetchedCity) refreshWeather();
+    if (settings.slides.news) refreshNews();
+    if (settings.slides.sports) refreshSports();
   },
 });
 
@@ -238,7 +286,7 @@ poke();
 (async function boot() {
   rebuild();
   try {
-    await board.boot(greetingSlide(new Date(), effectiveSettings()));
+    await board.boot(greetingSlide(new Date()));
   } catch (e) {}
   await show(0);
 })();
@@ -247,3 +295,5 @@ refreshWeather().then(() => {
   if (settings.city && settings.city !== lastFetchedCity) refreshWeather();
 });
 refreshMarkets();
+refreshNews();
+refreshSports();

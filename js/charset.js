@@ -4,6 +4,7 @@ export const COLS = 22;
 // Cycling order used by the flap animation (space first, like real boards).
 export const CHARS = " ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.,:!'+-?/()%$&#@=";
 
+// Solid colour flap codes -> CSS class suffix
 export const COLOR_TILES = {
   R: "red",
   O: "orange",
@@ -15,9 +16,13 @@ export const COLOR_TILES = {
   K: "black",
 };
 
+export const PALETTE_CODES = Object.keys(COLOR_TILES); // R O Y G B V W K
+
 export function emptyGrid() {
   return Array.from({ length: ROWS }, () => Array.from({ length: COLS }, () => " "));
 }
+
+const col = (code) => ({ c: COLOR_TILES[code] });
 
 export function centerRow(grid, rowIdx, text) {
   const t = String(text).toUpperCase().slice(0, COLS);
@@ -26,7 +31,6 @@ export function centerRow(grid, rowIdx, text) {
   for (let i = 0; i < t.length; i++) grid[rowIdx][pad + i] = chars[i];
 }
 
-/** Word-wrap text to full-width rows of <= COLS chars. */
 export function wrapText(text, width = COLS - 2) {
   const words = String(text).toUpperCase().split(/\s+/).filter(Boolean);
   const lines = [];
@@ -37,7 +41,6 @@ export function wrapText(text, width = COLS - 2) {
       line = candidate;
     } else {
       if (line) lines.push(line);
-      // hard-break words longer than the board
       let rest = w;
       while (rest.length > width) {
         lines.push(rest.slice(0, width));
@@ -47,19 +50,14 @@ export function wrapText(text, width = COLS - 2) {
     }
   }
   if (line) lines.push(line);
-  return lines.slice(0, 4);
+  return lines;
 }
 
-/** Place wrapped lines vertically centered on the grid, horizontally centered. */
 export function placeCentered(grid, lines) {
   const start = Math.max(0, Math.floor((ROWS - lines.length) / 2));
-  lines.forEach((l, i) => centerRow(grid, start + i, l));
+  lines.slice(0, ROWS).forEach((l, i) => centerRow(grid, start + i, l));
 }
 
-/**
- * Parse a message into lines. "|" forces a break, otherwise auto-wrap.
- * Returns array of strings (each <= COLS).
- */
 export function messageLines(msg) {
   return String(msg)
     .split("|")
@@ -67,9 +65,31 @@ export function messageLines(msg) {
     .slice(0, 4);
 }
 
-/** Paint a horizontal run of colour tiles on a row. */
 export function paintRun(grid, rowIdx, colStart, code, count) {
   for (let i = 0; i < count && colStart + i < COLS; i++) {
-    grid[rowIdx][colStart + i] = { c: COLOR_TILES[code] };
+    grid[rowIdx][colStart + i] = col(code);
   }
+}
+
+/** Stamp pixel-art (array of strings; '.' = skip, letters = palette codes) into the grid. */
+export function stamp(grid, topRow, leftCol, art) {
+  art.forEach((line, r) => {
+    const y = topRow + r;
+    if (y < 0 || y >= ROWS) return;
+    for (let i = 0; i < line.length; i++) {
+      const x = leftCol + i;
+      if (x < 0 || x >= COLS) continue;
+      const code = line[i].toUpperCase();
+      if (code === "." || code === " ") continue;
+      if (!COLOR_TILES[code]) continue;
+      grid[y][x] = col(code);
+    }
+  });
+}
+
+export function corners(grid, code = "W") {
+  grid[0][0] = col(code);
+  grid[0][COLS - 1] = col(code);
+  grid[ROWS - 1][0] = col(code);
+  grid[ROWS - 1][COLS - 1] = col(code);
 }

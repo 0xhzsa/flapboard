@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>FLAPBOARD — turn any screen into a split-flap board</title>
-<meta name="description" content="A retro Solari-style split-flap display for any TV or screen. Clock, weather, quotes, markets and your own messages.">
+<meta name="description" content="A retro Solari-style split-flap display for any TV or screen. Clock, weather, quotes, markets, scores and your own messages — with real flipping letters and colours.">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -16,6 +16,7 @@
 <main id="stage">
   <div id="frame">
     <div id="board" role="img" aria-label="Split flap display"></div>
+    <div id="qr-overlay" hidden><img alt="QR code"></div>
   </div>
   <footer id="statusbar">
     <span id="status-left">FLAPBOARD</span>
@@ -72,7 +73,7 @@
   </section>
 
   <section class="drawer-section">
-    <h3>Weather</h3>
+    <h3>Weather &amp; sky</h3>
     <label class="field">
       <span>City</span>
       <input id="inp-city" type="text" placeholder="e.g. Copenhagen" autocomplete="off">
@@ -88,17 +89,52 @@
     <h3>Slides</h3>
     <label class="check"><input id="chk-clock" type="checkbox" checked><span>Clock &amp; date</span></label>
     <label class="check"><input id="chk-weather" type="checkbox" checked><span>Weather</span></label>
+    <label class="check"><input id="chk-sunmoon" type="checkbox" checked><span>Sunrise / sunset / moon</span></label>
     <label class="check"><input id="chk-quote" type="checkbox" checked><span>Quote of the hour</span></label>
-    <label class="check"><input id="chk-markets" type="checkbox" checked><span>Markets (crypto)</span></label>
-    <label class="check"><input id="chk-messages" type="checkbox" checked><span>My messages</span></label>
-    <label class="field">
-      <span>Your messages — one per slide, use | to force a line break</span>
-      <textarea id="txt-messages" rows="6" spellcheck="false"></textarea>
-    </label>
+    <label class="check"><input id="chk-news" type="checkbox"><span>Tech headlines (Hacker News)</span></label>
+    <label class="check"><input id="chk-markets" type="checkbox" checked><span>Crypto markets</span></label>
     <label class="field">
       <span>Markets coins (comma separated ids)</span>
       <input id="inp-coins" type="text" value="bitcoin,ethereum" spellcheck="false">
     </label>
+  </section>
+
+  <section class="drawer-section">
+    <h3>Sports scores <em class="beta">beta</em></h3>
+    <label class="check"><input id="chk-sports" type="checkbox"><span>Show scoreboard</span></label>
+    <label class="field">
+      <span>League</span>
+      <select id="sel-league">
+        <option value="nba">NBA</option>
+        <option value="nfl">NFL</option>
+        <option value="mlb">MLB</option>
+        <option value="nhl">NHL</option>
+        <option value="epl">Premier League</option>
+      </select>
+    </label>
+  </section>
+
+  <section class="drawer-section">
+    <h3>Your board</h3>
+    <label class="field">
+      <span>Messages — one per slide. Use | for line breaks.</span>
+      <textarea id="txt-messages" rows="6" spellcheck="false"></textarea>
+    </label>
+    <p class="hint">Schedule messages by time or day:<br>
+      <code>07:00-11:00 FRESH CROISSANTS</code><br>
+      <code>Mo-Fr 16:00-19:00 HAPPY HOUR IS ON</code><br>
+      QR code slide: <code>QR https://your-menu.com|SCAN FOR MENU</code>
+    </p>
+    <label class="field">
+      <span>Agenda shown on "Today" slide — one per line</span>
+      <textarea id="txt-agenda" rows="4" placeholder="09:30 STANDUP" spellcheck="false"></textarea>
+    </label>
+    <label class="check"><input id="chk-agenda" type="checkbox" checked><span>Show agenda slide</span></label>
+    <div class="row">
+      <label class="field grow"><span>Countdown label</span><input id="inp-cd-label" type="text" placeholder="SUMMER"></label>
+      <label class="field date-w"><span>Date</span><input id="inp-cd-date" type="date"></label>
+    </div>
+    <label class="check"><input id="chk-countdown" type="checkbox" checked><span>Show countdown slide</span></label>
   </section>
 
   <section class="drawer-section drawer-foot">
