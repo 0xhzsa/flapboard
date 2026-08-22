@@ -1,4 +1,4 @@
-import { ROWS, COLS, emptyGrid, centerRow, wrapText, placeCentered, paintRun, stamp, corners } from "./charset.js";
+import { ROWS, COLS, emptyGrid, centerRow, wrapText, placeCentered, paintRun, stamp, corners, COLOR_TILES } from "./charset.js";
 import { codeText, moonPhase } from "./weather.js";
 import { fmtPrice, tickerSymbol } from "./markets.js";
 import { fmtStockPrice } from "./stocks.js";
@@ -177,7 +177,73 @@ export function agendaSlide(items) {
   return g;
 }
 
-/** Message slide. Returns {grid, overlay?}. Supports "QR https://... | CAPTION". */
+export function calendarSlide(items) {
+  const g = emptyGrid();
+  paintRun(g, 0, Math.floor((COLS - 5) / 2), "B", 5);
+  centerRow(g, 1, "CALENDAR");
+  if (!items || !items.length) {
+    centerRow(g, 3, "NOTHING THIS WEEK");
+    return g;
+  }
+  items.slice(0, 4).forEach((e) => {
+    const row = items.indexOf(e);
+    centerRow(g, row + 2, `${e.when} ${e.title}`.slice(0, COLS));
+  });
+  return g;
+}
+
+export function aqiSlide(aqiData) {
+  const g = emptyGrid();
+  const color = aqiData?.color === "R" ? "R" : aqiData?.color === "O" ? "O" : aqiData?.color === "Y" ? "Y" : "G";
+  paintRun(g, 0, Math.floor((COLS - 5) / 2), color, 5);
+  centerRow(g, 1, "AIR QUALITY");
+  if (!aqiData) {
+    centerRow(g, 3, "AWAITING DATA");
+    return g;
+  }
+  centerRow(g, 2, `AQI ${aqiData.aqi}`);
+  centerRow(g, 3, aqiData.word);
+  return g;
+}
+
+export function nowPlayingSlide(np) {
+  const g = emptyGrid();
+  paintRun(g, 0, Math.floor((COLS - 6) / 2), "V", 6);
+  centerRow(g, 1, "NOW PLAYING");
+  if (!np || !np.title) {
+    centerRow(g, 3, "SILENCE IS GOLDEN");
+    return g;
+  }
+  const lines = wrapText(np.title, 20).slice(0, 2);
+  lines.forEach((l, i) => centerRow(g, i + 2, l));
+  if (np.artist) centerRow(g, Math.min(5, lines.length + 2), np.artist.toUpperCase().slice(0, COLS));
+  return g;
+}
+
+/** Classic Solari departures board. Lines: HH:MM|DEST|CODE|STATUS */
+export function departuresSlide(lines) {
+  const g = emptyGrid();
+  paintRun(g, 0, 0, "Y", 1);
+  paintRun(g, 0, COLS - 1, "Y", 1);
+  centerRow(g, 0, "DEPARTURES");
+  const SHORT = { "ON TIME": "OK", BOARDING: "BRDNG", DELAYED: "LATE", DEPARTED: "GONE", CANCELLED: "CXLD" };
+  const STATUS_COLOR = { OK: "G", BRDNG: "G", LATE: "Y", GONE: "B", CXLD: "R" };
+  const rows = lines.slice(0, 5);
+  rows.forEach((raw, r) => {
+    const parts = String(raw).split("|").map((p) => p.trim());
+    const time = (parts[0] || "").replace(":", "").slice(0, 4);
+    const dest = (parts[1] || "").toUpperCase().slice(0, 9);
+    const rawStatus = (parts[3] || parts[2] || "ON TIME").toUpperCase();
+    const status = SHORT[rawStatus] || rawStatus.slice(0, 5);
+    let line = `${time} ${dest.padEnd(9, " ")} `;
+    line += status;
+    for (let c = 0; c < Math.min(COLS - 1, line.length); c++) grid_set(g, r + 1, c, line[c]);
+    const sc = STATUS_COLOR[status];
+    if (sc) g[r + 1][COLS - 1] = { c: COLOR_TILES[sc] };
+  });
+  return g;
+}
+
 export function messageSlide(raw) {
   const s = parseSchedule(raw);
   const body = s.text;
@@ -266,9 +332,21 @@ export function statsSlide(statsData) {
 export function buildSlides(settings, data, now = new Date()) {
   const list = [];
   const S = settings.slides || {};
+
+  // Departures mode replaces everything — it IS the board then.
+  if (S.departures && Array.isArray(settings.flights) && settings.flights.length) {
+    list.push({ id: "departures", label: "DEPARTURES", grid: departuresSlide(settings.flights) });
+    return list;
+  }
+
   if (S.clock) list.push({ id: "clock", label: "CLOCK", grid: clockSlide(now, settings) });
   if (S.weather) list.push({ id: "weather", label: "WEATHER", grid: weatherSlide(data.weather, settings) });
   if (S.sunmoon && data.weather) list.push({ id: "sunmoon", label: "SKY", grid: sunMoonSlide(data.weather) });
+  if (S.aqi) list.push({ id: "aqi", label: "AIR", grid: aqiSlide(data.aqi) });
+  if (S.calendar && Array.isArray(data.calendar)) {
+    list.push({ id: "calendar", label: "CALENDAR", grid: calendarSlide(data.calendar) });
+  }
+  if (S.nowplaying) list.push({ id: "nowplaying", label: "ON AIR", grid: nowPlayingSlide(data.nowPlaying) });
   if (S.quote) list.push({ id: "quote", label: "QUOTE", grid: quoteSlide(data.quote) });
   if (S.news && Array.isArray(data.news)) {
     for (const t of data.news.slice(0, 2)) list.push({ id: "news", label: "NEWS", grid: newsSlide(t) });

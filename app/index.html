@@ -54,6 +54,10 @@
         <option value="classic">Classic · white on black</option>
         <option value="amber">Amber terminal</option>
         <option value="ivory">Ivory daylight</option>
+        <option value="nord">Nord blue</option>
+        <option value="forest">Forest green</option>
+        <option value="crimson">Crimson night</option>
+        <option value="mint">Mint station</option>
       </select>
     </label>
     <label class="field">
@@ -90,6 +94,7 @@
     <h3>Slides</h3>
     <label class="check"><input id="chk-clock" type="checkbox" checked><span>Clock &amp; date</span></label>
     <label class="check"><input id="chk-weather" type="checkbox" checked><span>Weather</span></label>
+    <label class="check"><input id="chk-aqi" type="checkbox" checked><span>Air quality</span></label>
     <label class="check"><input id="chk-sunmoon" type="checkbox" checked><span>Sunrise / sunset / moon</span></label>
     <label class="check"><input id="chk-quote" type="checkbox" checked><span>Quote of the hour</span></label>
     <label class="check"><input id="chk-news" type="checkbox"><span>Tech headlines (Hacker News)</span></label>
@@ -108,6 +113,10 @@
       <span>Stock symbols (comma separated)</span>
       <input id="inp-stocks" type="text" value="AAPL,NVDA,MSFT,TSLA" spellcheck="false">
     </label>
+    <label class="field">
+      <span>Custom stock feed URL (optional — JSON with price/chg per symbol)</span>
+      <input id="inp-stock-feed" type="text" placeholder="https://your-relay.example.com/stocks" spellcheck="false">
+    </label>
   </section>
 
   <section class="drawer-section">
@@ -117,6 +126,29 @@
       <textarea id="txt-events" rows="4" placeholder="2026-09-12 TITLE FIGHT NIGHT&#10;FRIDAYS QUIZ + WINGS" spellcheck="false"></textarea>
     </label>
     <label class="check"><input id="chk-events" type="checkbox" checked><span>Show events slide</span></label>
+  </section>
+
+  <section class="drawer-section">
+    <h3>Calendar &amp; sound</h3>
+    <label class="check"><input id="chk-calendar" type="checkbox"><span>Calendar slide (iCal link)</span></label>
+    <label class="field">
+      <span>iCal URL — Google Calendar → Settings → Secret address (.ics)</span>
+      <input id="inp-cal-url" type="text" placeholder="https://calendar.google.com/calendar/ical/..." spellcheck="false">
+    </label>
+    <label class="check"><input id="chk-nowplaying" type="checkbox"><span>Now Playing slide</span></label>
+    <label class="field">
+      <span>Now Playing feed URL (JSON: title + artist)</span>
+      <input id="inp-np-url" type="text" placeholder="https://your-nowplaying-endpoint" spellcheck="false">
+    </label>
+  </section>
+
+  <section class="drawer-section">
+    <h3>Airport departures mode</h3>
+    <label class="check"><input id="chk-departures" type="checkbox"><span>Board shows ONLY the departures table</span></label>
+    <p class="hint">Rows: <code>HH:MM|DESTINATION|STATUS</code><br>Status auto-shown as OK / BRDNG / LATE / CXLD with a colored tile.</p>
+    <label class="field">
+      <textarea id="txt-flights" rows="4" placeholder="07:25|LONDON|BA842|BOARDING" spellcheck="false"></textarea>
+    </label>
   </section>
 
   <section class="drawer-section">
@@ -130,6 +162,8 @@
         <option value="mlb">MLB</option>
         <option value="nhl">NHL</option>
         <option value="epl">Premier League</option>
+        <option value="boxing">Boxing</option>
+        <option value="mma">MMA / UFC</option>
       </select>
     </label>
   </section>
@@ -165,6 +199,7 @@
 </aside>
 
 <div id="toast" role="status"></div>
+<script src="js/vendor/qrcode.js"></script>
 <script type="module" src="js/main.js"></script>
 </body>
 </html>

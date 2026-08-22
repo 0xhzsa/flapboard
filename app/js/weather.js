@@ -94,5 +94,5 @@ export function moonPhase(date = new Date()) {
 export async function getWeather(city) {
   const geo = await geocode(city);
   const data = await fetchWeather(geo.lat, geo.lon);
-  return { ...data, city: geo.label };
+  return { ...data, city: geo.label, lat: geo.lat, lon: geo.lon };
 }

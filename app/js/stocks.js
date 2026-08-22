@@ -15,9 +15,30 @@ export function cachedStocks(symbols) {
   }
 }
 
-export async function fetchStocks(symbolsCsv) {
+export async function fetchStocks(symbolsCsv, customFeedUrl) {
   const symbols = symbolsCsv.split(",").map((s) => s.trim().toUpperCase()).filter(Boolean).slice(0, 4);
   if (!symbols.length) throw new Error("no symbols");
+
+  // 1) user's own feed wins (JSON: {"AAPL":{"price":228,"chg":1.2}})
+  if (customFeedUrl) {
+    try {
+      const r = await fetch(customFeedUrl, { cache: "no-store" });
+      if (r.ok) {
+        const j = await r.json();
+        const out = {};
+        for (const sym of symbols) {
+          const v = j[sym];
+          if (v && typeof v.price === "number") out[sym] = { price: v.price, chg: v.chg || 0 };
+        }
+        if (Object.keys(out).length) {
+          persist(symbolsCsv, out);
+          return out;
+        }
+      }
+    } catch (e) {}
+  }
+
+  // 2) public Yahoo endpoint (works where CORS allows it)
   const out = {};
   await Promise.all(
     symbols.map(async (sym) => {
@@ -37,10 +58,14 @@ export async function fetchStocks(symbolsCsv) {
     })
   );
   if (!Object.keys(out).length) throw new Error("feed blocked");
-  try {
-    localStorage.setItem(CACHE_KEY, JSON.stringify({ at: Date.now(), key: symbolsCsv, data: out }));
-  } catch (e) {}
+  persist(symbolsCsv, out);
   return out;
+}
+
+function persist(key, out) {
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify({ at: Date.now(), key, data: out }));
+  } catch (e) {}
 }
 
 /** Plausible sample data used in demo mode and when feeds are unreachable. */

@@ -51,6 +51,8 @@ function sportPath(league) {
     case "mlb": return "baseball/mlb";
     case "nhl": return "hockey/nhl";
     case "epl": return "soccer/eng.1";
+    case "boxing": return "boxing";
+    case "mma": return "mma";
     default: return "basketball/nba";
   }
 }

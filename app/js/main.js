@@ -8,6 +8,8 @@ import { cachedNews, fetchNews } from "./news.js";
 import { cachedSports, fetchSports } from "./sports.js";
 import { cachedStatsFor, fetchStats } from "./stats.js";
 import { cachedStocks, fetchStocks, demoStocks } from "./stocks.js";
+import { cachedCalendarFor, fetchCalendar } from "./calendar.js";
+import { cachedAqi, fetchAqi } from "./aqi.js";
 import { initDrawer, renderDots, toast, setWeatherStatus } from "./ui.js";
 import { sound } from "./sound.js";
 
@@ -72,6 +74,9 @@ const data = {
   sports: null,
   stocks: params.has("demo") || settings.slides.stocks ? cachedStocks(settings.stockSymbols) : null,
   stats: settings.statsUrl ? cachedStatsFor(settings.statsUrl) : null,
+  calendar: settings.calendarUrl ? cachedCalendarFor(settings.calendarUrl) : null,
+  aqi: cachedAqi(),
+  nowPlaying: null,
   quote: quoteForHour(),
 };
 {
@@ -95,12 +100,40 @@ async function refreshWeather(manual = false) {
     data.weather = w;
     lastFetchedCity = settings.city;
     setWeatherStatus(w.city + " · updated " + new Date().toLocaleTimeString());
+    // air quality piggybacks on the same location fix
+    if (settings.slides.aqi) {
+      fetchAqi(w.lat, w.lon).then((a) => { data.aqi = a; softRedraw(); }).catch(() => {});
+    }
     softRedraw();
     updateStatus();
   } catch (e) {
     setWeatherStatus("Failed: " + e.message);
     if (manual) toast("WEATHER FAILED");
   }
+}
+
+let calBusy = false;
+async function refreshCalendar() {
+  if (!settings.calendarUrl || !settings.slides.calendar || calBusy) return;
+  calBusy = true;
+  try {
+    data.calendar = await fetchCalendar(settings.calendarUrl);
+    softRedraw();
+  } catch (e) {} finally { calBusy = false; }
+}
+
+let npBusy = false;
+async function refreshNowPlaying() {
+  if (!settings.nowPlayingUrl || !settings.slides.nowplaying || npBusy) return;
+  npBusy = true;
+  try {
+    const r = await fetch(settings.nowPlayingUrl, { cache: "no-store" });
+    if (r.ok) {
+      const j = await r.json();
+      data.nowPlaying = { title: String(j.title || "").slice(0, 60), artist: String(j.artist || "").slice(0, 22) };
+      softRedraw();
+    }
+  } catch (e) {} finally { npBusy = false; }
 }
 
 let marketsBusy = false;
@@ -149,7 +182,7 @@ async function refreshStocks() {
   if (stocksBusy) return;
   stocksBusy = true;
   try {
-    data.stocks = await fetchStocks(settings.stockSymbols);
+    data.stocks = await fetchStocks(settings.stockSymbols, settings.stockFeedUrl);
     softRedraw();
   } catch (e) {
     if (params.has("demo")) {
@@ -202,16 +235,29 @@ async function show(i, opts = {}) {
   await board.show(slide.grid, opts);
   renderDots(dotsEl, slides.length, idx);
 
-  // QR overlay handling
-  if (slide.overlay) {
+  // QR overlay handling — generated locally, works fully offline
+  const setQr = (url) => {
+    if (!url) {
+      qrOverlay.hidden = true;
+      return;
+    }
     const img = qrOverlay.querySelector("img");
-    const desired = "https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=2&data=" + encodeURIComponent(slide.overlay);
-    if (img.src !== desired) img.src = desired;
+    try {
+      if (window.qrcode) {
+        const qr = window.qrcode(0, "M");
+        qr.addData(url);
+        qr.make();
+        img.src = qr.createDataURL(8, 4); // crisp GIF data-URL, no network
+      } else {
+        img.src = "https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=2&data=" + encodeURIComponent(url);
+      }
+    } catch (e) {
+      img.src = "https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=2&data=" + encodeURIComponent(url);
+    }
     qrOverlay.hidden = false;
-  } else {
-    qrOverlay.hidden = true;
-  }
+  };
 
+  setQr(slide.overlay || null);
   updateStatus();
   scheduleNext();
 }
@@ -239,7 +285,16 @@ function softRedraw() {
   renderDots(dotsEl, slides.length, idx);
   if (slide.overlay) {
     const img = qrOverlay.querySelector("img");
-    img.src = "https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=2&data=" + encodeURIComponent(slide.overlay);
+    try {
+      if (window.qrcode) {
+        const qr = window.qrcode(0, "M");
+        qr.addData(slide.overlay);
+        qr.make();
+        img.src = qr.createDataURL(8, 4);
+      } else {
+        img.src = "https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=2&data=" + encodeURIComponent(slide.overlay);
+      }
+    } catch (e) {}
     qrOverlay.hidden = false;
   } else {
     qrOverlay.hidden = true;
@@ -280,6 +335,8 @@ setInterval(() => refreshNews(), 15 * 60 * 1000);
 setInterval(() => refreshSports(), 3 * 60 * 1000);
 setInterval(() => refreshStats(), 2 * 60 * 1000);
 setInterval(() => refreshStocks(), 3 * 60 * 1000);
+setInterval(() => refreshCalendar(), 30 * 60 * 1000);
+setInterval(() => refreshNowPlaying(), 90 * 1000);
 
 /* ---------- controls ---------- */
 const drawer = initDrawer(settings, {
@@ -293,6 +350,8 @@ const drawer = initDrawer(settings, {
     if (settings.slides.news) refreshNews();
     if (settings.slides.sports) refreshSports();
     if (settings.slides.stats && settings.statsUrl) refreshStats();
+    if (settings.slides.calendar && settings.calendarUrl) refreshCalendar();
+    if (settings.slides.nowplaying && settings.nowPlayingUrl) refreshNowPlaying();
   },
 });
 
@@ -356,6 +415,8 @@ refreshNews();
 refreshSports();
 refreshStats();
 if (settings.slides.stocks || params.has("demo")) refreshStocks();
+refreshCalendar();
+refreshNowPlaying();
 
 /* ---------- share link (kiosk setup for venues) ---------- */
 function buildShareUrl() {

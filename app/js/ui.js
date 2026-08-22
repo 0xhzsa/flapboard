@@ -95,6 +95,10 @@ export function initDrawer(settings, { onChange }) {
     "chk-stats": "stats",
     "chk-stocks": "stocks",
     "chk-events": "events",
+    "chk-aqi": "aqi",
+    "chk-calendar": "calendar",
+    "chk-nowplaying": "nowplaying",
+    "chk-departures": "departures",
     "chk-sports": "sports",
     "chk-agenda": "agenda",
     "chk-countdown": "countdown",
@@ -119,10 +123,30 @@ export function initDrawer(settings, { onChange }) {
   stocks.value = settings.stockSymbols;
   stocks.onchange = bind(() => (settings.stockSymbols = stocks.value.trim() || "AAPL"));
 
+  const stockFeed = $("inp-stock-feed");
+  if (stockFeed) {
+    stockFeed.value = settings.stockFeedUrl || "";
+    stockFeed.onchange = bind(() => (settings.stockFeedUrl = stockFeed.value.trim()));
+  }
+
   const events = $("txt-events");
   events.value = (settings.events || []).join("\n");
   events.onchange = bind(() => {
     settings.events = events.value.split("\n").map((s) => s.trim()).filter(Boolean).slice(0, 8);
+  });
+
+  const calUrl = $("inp-cal-url");
+  calUrl.value = settings.calendarUrl || "";
+  calUrl.onchange = bind(() => (settings.calendarUrl = calUrl.value.trim()));
+
+  const npUrl = $("inp-np-url");
+  npUrl.value = settings.nowPlayingUrl || "";
+  npUrl.onchange = bind(() => (settings.nowPlayingUrl = npUrl.value.trim()));
+
+  const flights = $("txt-flights");
+  flights.value = (settings.flights || []).join("\n");
+  flights.onchange = bind(() => {
+    settings.flights = flights.value.split("\n").map((s) => s.trim()).filter(Boolean).slice(0, 5);
   });
 
   const league = $("sel-league");
