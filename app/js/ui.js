@@ -92,6 +92,9 @@ export function initDrawer(settings, { onChange }) {
     "chk-quote": "quote",
     "chk-news": "news",
     "chk-markets": "markets",
+    "chk-stats": "stats",
+    "chk-stocks": "stocks",
+    "chk-events": "events",
     "chk-sports": "sports",
     "chk-agenda": "agenda",
     "chk-countdown": "countdown",
@@ -107,6 +110,20 @@ export function initDrawer(settings, { onChange }) {
   const coins = $("inp-coins");
   coins.value = settings.coins;
   coins.onchange = bind(() => (settings.coins = coins.value.trim() || "bitcoin"));
+
+  const statsUrl = $("inp-stats-url");
+  statsUrl.value = settings.statsUrl || "";
+  statsUrl.onchange = bind(() => (settings.statsUrl = statsUrl.value.trim()));
+
+  const stocks = $("inp-stocks");
+  stocks.value = settings.stockSymbols;
+  stocks.onchange = bind(() => (settings.stockSymbols = stocks.value.trim() || "AAPL"));
+
+  const events = $("txt-events");
+  events.value = (settings.events || []).join("\n");
+  events.onchange = bind(() => {
+    settings.events = events.value.split("\n").map((s) => s.trim()).filter(Boolean).slice(0, 8);
+  });
 
   const league = $("sel-league");
   league.value = settings.league || "nba";

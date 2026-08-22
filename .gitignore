@@ -1,0 +1,4 @@
+node_modules/
+*.png
+!assets/*.png
+tools/qa*.mjs

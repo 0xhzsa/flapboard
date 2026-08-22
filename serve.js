@@ -21,6 +21,7 @@ http
   .createServer(async (req, res) => {
     try {
       let p = decodeURIComponent(new URL(req.url, "http://localhost").pathname);
+      if (p.endsWith("/")) p += "index.html";
       if (p === "/") p = "/index.html";
       p = normalize(p).replace(/^(\.\.[\/\\])+/, "");
       const data = await readFile(join(root, p));

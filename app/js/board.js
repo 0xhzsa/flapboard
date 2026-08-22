@@ -3,11 +3,12 @@ import { sound } from "./sound.js";
 
 const IDX = new Map([...CHARS].map((ch, i) => [ch, i]));
 const LEN = CHARS.length;
+const VALID_COLS = new Set(Object.values(COLOR_TILES));
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /** A tile state: lettered flap ({ch:'A', col:null}) or solid colour flap ({ch:' ', col:'red'}). */
 const stateOf = (cell) => {
-  if (cell && typeof cell === "object") return { ch: " ", col: COLOR_TILES[cell.c] ? cell.c : null };
+  if (cell && typeof cell === "object") return { ch: " ", col: VALID_COLS.has(cell.c) ? cell.c : null };
   const ch = String(cell ?? " ").toUpperCase()[0] || " ";
   return { ch: IDX.has(ch) ? ch : " ", col: null };
 };
@@ -189,7 +190,7 @@ export class Board {
     this.root.style.setProperty("--cw", cw + "px");
     this.root.style.setProperty("--chh", chh + "px");
     this.root.style.setProperty("--gap", gap + "px");
-    this.root.style.setProperty("--fs", Math.round(chh * 0.72) + "px");
+    this.root.style.setProperty("--fs", Math.round(chh * 0.78) + "px");
   }
 
   setAll(ch) {

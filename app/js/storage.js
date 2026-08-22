@@ -10,6 +10,13 @@ export const DEFAULTS = {
   units: "F",
   coins: "bitcoin,ethereum",
   league: "nba",
+  statsUrl: "",
+  stockSymbols: "AAPL,NVDA,MSFT,TSLA",
+  events: [
+    "2026-09-12 TITLE FIGHT NIGHT",
+    "2026-09-19 DJ MARCO ALL NIGHT",
+    "FRIDAYS QUIZ + WINGS",
+  ],
   slides: {
     clock: true,
     weather: true,
@@ -18,6 +25,9 @@ export const DEFAULTS = {
     news: false,
     sports: false,
     markets: true,
+    stocks: false,
+    stats: false,
+    events: true,
     agenda: true,
     countdown: true,
     messages: true,

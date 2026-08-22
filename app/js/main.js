@@ -6,6 +6,8 @@ import { cachedWeather, getWeather } from "./weather.js";
 import { cachedMarkets, fetchMarkets, fmtPrice } from "./markets.js";
 import { cachedNews, fetchNews } from "./news.js";
 import { cachedSports, fetchSports } from "./sports.js";
+import { cachedStatsFor, fetchStats } from "./stats.js";
+import { cachedStocks, fetchStocks, demoStocks } from "./stocks.js";
 import { initDrawer, renderDots, toast, setWeatherStatus } from "./ui.js";
 import { sound } from "./sound.js";
 
@@ -21,6 +23,28 @@ if (params.get("speed")) settings.speed = params.get("speed");
 if (params.get("league")) settings.league = params.get("league");
 if (params.get("dwell")) settings.dwell = Math.min(120, Math.max(4, parseInt(params.get("dwell"), 10) || settings.dwell));
 if (params.has("quiet")) settings.sound = false;
+
+/* ---------- demo mode (for the landing page embed & tweet) ---------- */
+const DEMO = params.has("demo");
+if (DEMO) {
+  settings.city = settings.city || "New York";
+  settings.units = "F";
+  settings.theme = "classic";
+  settings.dwell = 6;
+  settings.clean = true;
+  settings.sound = false;
+  Object.assign(settings.slides, {
+    clock: true, weather: true, sunmoon: true, quote: true, news: true,
+    sports: true, markets: true, stocks: true, stats: false,
+    events: true, agenda: true, countdown: true, messages: true,
+  });
+  settings.messages = [
+    "WELCOME TO FLAPBOARD|YOUR TV IS THE BOARD",
+    "Mo-Fr 07:00-11:00 FRESH COFFEE ALL MORNING",
+    "FRIDAY 21:00|DJ NIGHT - FREE ENTRY",
+    "QR https://x.com/0xhzsa|FOLLOW THE BUILD",
+  ];
+}
 const lockedSlide = params.has("lock") ? params.get("lock") || "clock" : null;
 const msgsParam = params.get("msg");
 const sessionMessages = msgsParam ? msgsParam.split(";").map((s) => s.trim()).filter(Boolean) : null;
@@ -46,6 +70,8 @@ const data = {
   markets: null,
   news: null,
   sports: null,
+  stocks: params.has("demo") || settings.slides.stocks ? cachedStocks(settings.stockSymbols) : null,
+  stats: settings.statsUrl ? cachedStatsFor(settings.statsUrl) : null,
   quote: quoteForHour(),
 };
 {
@@ -110,6 +136,31 @@ async function refreshSports(manual = false) {
   }
 }
 
+async function refreshStats() {
+  if (!settings.statsUrl || !settings.slides.stats) return;
+  try {
+    data.stats = await fetchStats(settings.statsUrl);
+    softRedraw();
+  } catch (e) {}
+}
+
+let stocksBusy = false;
+async function refreshStocks() {
+  if (stocksBusy) return;
+  stocksBusy = true;
+  try {
+    data.stocks = await fetchStocks(settings.stockSymbols);
+    softRedraw();
+  } catch (e) {
+    if (params.has("demo")) {
+      data.stocks = demoStocks(); // keep the demo slide alive when feeds are blocked
+      softRedraw();
+    }
+  } finally {
+    stocksBusy = false;
+  }
+}
+
 /* ---------- slide loop ---------- */
 let slides = [];
 let idx = 0;
@@ -147,6 +198,7 @@ async function show(i, opts = {}) {
   clearTimeout(timer);
   idx = ((i % slides.length) + slides.length) % slides.length;
   const slide = slides[idx];
+  window.__slideId = slide.id;
   await board.show(slide.grid, opts);
   renderDots(dotsEl, slides.length, idx);
 
@@ -226,6 +278,8 @@ setInterval(() => refreshWeather(), 10 * 60 * 1000);
 setInterval(() => refreshMarkets(), 5 * 60 * 1000);
 setInterval(() => refreshNews(), 15 * 60 * 1000);
 setInterval(() => refreshSports(), 3 * 60 * 1000);
+setInterval(() => refreshStats(), 2 * 60 * 1000);
+setInterval(() => refreshStocks(), 3 * 60 * 1000);
 
 /* ---------- controls ---------- */
 const drawer = initDrawer(settings, {
@@ -238,11 +292,13 @@ const drawer = initDrawer(settings, {
     if (settings.city && settings.city !== lastFetchedCity) refreshWeather();
     if (settings.slides.news) refreshNews();
     if (settings.slides.sports) refreshSports();
+    if (settings.slides.stats && settings.statsUrl) refreshStats();
   },
 });
 
 $("btn-prev").onclick = prev;
 $("btn-next").onclick = next;
+if (DEMO) $("btn-setup").hidden = true;
 
 $("btn-sound").onclick = () => {
   settings.sound = !settings.sound;
@@ -261,6 +317,7 @@ $("board").ondblclick = toggleFullscreen;
 
 window.addEventListener("keydown", (e) => {
   if (e.target && ["INPUT", "TEXTAREA", "SELECT"].includes(e.target.tagName)) return;
+  if (DEMO && ["s", "S"].includes(e.key)) return; // kiosk demo: no settings
   switch (e.key) {
     case "ArrowRight": next(); break;
     case "ArrowLeft": prev(); break;
@@ -297,3 +354,28 @@ refreshWeather().then(() => {
 refreshMarkets();
 refreshNews();
 refreshSports();
+refreshStats();
+if (settings.slides.stocks || params.has("demo")) refreshStocks();
+
+/* ---------- share link (kiosk setup for venues) ---------- */
+function buildShareUrl() {
+  const p = new URLSearchParams();
+  if (settings.city) p.set("city", settings.city);
+  if (settings.units) p.set("units", settings.units);
+  if (settings.theme !== "classic") p.set("theme", settings.theme);
+  if (settings.speed !== "normal") p.set("speed", settings.speed);
+  if (settings.dwell !== 9) p.set("dwell", settings.dwell);
+  const msgs = (settings.messages || []).filter(Boolean);
+  if (msgs.length) p.set("msg", msgs.join(";"));
+  return location.origin + location.pathname.replace(/(index\.html)?$/, "") + "?" + p.toString();
+}
+$("btn-share").onclick = async () => {
+  const url = buildShareUrl();
+  try {
+    await navigator.clipboard.writeText(url);
+    toast("LINK COPIED - OPEN IT ON ANY TV");
+  } catch (e) {
+    prompt("Copy this link:", url);
+  }
+};
+$("btn-share").hidden = DEMO;

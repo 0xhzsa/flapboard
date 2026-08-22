@@ -1,6 +1,7 @@
 import { ROWS, COLS, emptyGrid, centerRow, wrapText, placeCentered, paintRun, stamp, corners } from "./charset.js";
 import { codeText, moonPhase } from "./weather.js";
 import { fmtPrice, tickerSymbol } from "./markets.js";
+import { fmtStockPrice } from "./stocks.js";
 import { spriteForCode, SPRITES } from "./icons.js";
 import { parseSchedule, isMessageActive, isQrMessage } from "./schedule.js";
 
@@ -51,7 +52,8 @@ export function weatherSlide(data, settings) {
   }
   centerRow(g, 1, (data.city || "").slice(0, COLS));
 
-  const cond = codeText(data.code);
+  const SHORTEN = { "PARTLY CLOUDY": "P.CLOUDY", "MOSTLY SUNNY": "M.SUNNY", "CLEAR SKIES": "CLEAR", "LIGHT RAIN": "LT RAIN", "HEAVY RAIN": "HVY RAIN", "LIGHT SNOW": "LT SNOW", "HEAVY SNOW": "HVY SNOW", "HEAVY SHOWERS": "SHOWERS", "SNOW SHOWERS": "SNOWSHWR", "FREEZING FOG": "FRZ FOG", "ICY DRIZZLE": "IC DRIZZLE", "T-STORM HAIL": "T-STORM", "CHANGEABLE": "MIXED" };
+  const cond = SHORTEN[codeText(data.code)] || codeText(data.code);
   stamp(g, 3, 1, spriteForCode(data.code));
 
   // right-hand stat column next to the icon
@@ -196,6 +198,70 @@ export function messageSlide(raw) {
   return { grid: g, overlay: null };
 }
 
+export function stocksSlide(stocksData) {
+  const g = emptyGrid();
+  paintRun(g, 0, Math.floor((COLS - 6) / 2), "G", 6);
+  centerRow(g, 1, "STOCKS");
+  if (!stocksData || !Object.keys(stocksData).length) {
+    centerRow(g, 3, "FEED OFFLINE");
+    return g;
+  }
+  Object.entries(stocksData).slice(0, 4).forEach(([sym, v], i) => {
+    const sign = v.chg >= 0 ? "+" : "-";
+    centerRow(g, i + 2, `${sym} ${fmtStockPrice(v.price)} ${sign}${Math.abs(v.chg).toFixed(1)}%`.slice(0, COLS));
+  });
+  return g;
+}
+
+/** Upcoming events: fights, DJ sets, quiz nights. Lines: "YYYY-MM-DD TITLE" (date optional). */
+export function eventsSlide(items, now = new Date()) {
+  const g = emptyGrid();
+  paintRun(g, 0, Math.floor((COLS - 6) / 2), "R", 3);
+  paintRun(g, 0, Math.floor((COLS - 6) / 2) + 3, "K", 3);
+  centerRow(g, 1, "WHAT'S ON");
+  const parsed = items
+    .map((line) => {
+      const m = String(line).match(/^(\d{4}-\d{2}-\d{2})\s+(.+)$/);
+      return m ? { date: m[1], text: m[2] } : { date: null, text: line };
+    })
+    .filter((e) => !e.date || new Date(e.date + "T23:59:59") >= now)
+    .sort((a, b) => (a.date || "9999").localeCompare(b.date || "9999"))
+    .slice(0, 3);
+  if (!parsed.length) {
+    centerRow(g, 3, "NOTHING ANNOUNCED");
+    return g;
+  }
+  parsed.forEach((e, i) => {
+    let label = e.text.toUpperCase();
+    if (e.date) {
+      const d = new Date(e.date + "T12:00:00");
+      const diff = Math.round((new Date(e.date + "T00:00:00") - new Date(now.toDateString())) / 86400000);
+      const when = diff === 0 ? "TONIGHT" : diff === 1 ? "TOMORROW" : `${DAYS[d.getDay()].slice(0, 3)} ${d.getDate()}`;
+      label = `${when} ${label}`.slice(0, COLS);
+    }
+    centerRow(g, i + 2, label);
+  });
+  return g;
+}
+
+export function statsSlide(statsData) {
+  const g = emptyGrid();
+  paintRun(g, 0, Math.floor((COLS - 5) / 2), "G", 5);
+  if (!statsData || !statsData.rows || !statsData.rows.length) {
+    centerRow(g, 1, "STATS");
+    centerRow(g, 3, "FEED OFFLINE");
+    return g;
+  }
+  centerRow(g, 1, String(statsData.title || "STATS").slice(0, COLS));
+  statsData.rows.slice(0, 4).forEach((row, i) => {
+    const label = String(row[0] || "").toUpperCase();
+    const value = String(row[1] ?? "");
+    const line = `${label} ${value}`.trim().slice(0, COLS);
+    centerRow(g, i + 2, line);
+  });
+  return g;
+}
+
 /** Build the ordered slide list from current settings + live data. */
 export function buildSlides(settings, data, now = new Date()) {
   const list = [];
@@ -209,6 +275,13 @@ export function buildSlides(settings, data, now = new Date()) {
   }
   if (S.sports && data.sports) list.push({ id: "sports", label: "SCORES", grid: sportsSlide(data.sports) });
   if (S.markets) list.push({ id: "markets", label: "MARKETS", grid: marketsSlide(data.markets) });
+  if (S.stocks) list.push({ id: "stocks", label: "STOCKS", grid: stocksSlide(data.stocks) });
+  if (S.events && Array.isArray(settings.events) && settings.events.length) {
+    list.push({ id: "events", label: "EVENTS", grid: eventsSlide(settings.events, now) });
+  }
+  if (S.stats && data.stats && settings.statsUrl) {
+    list.push({ id: "stats", label: "STATS", grid: statsSlide(data.stats) });
+  }
   if (S.agenda && Array.isArray(settings.agenda) && settings.agenda.length) {
     list.push({ id: "agenda", label: "TODAY", grid: agendaSlide(settings.agenda) });
   }

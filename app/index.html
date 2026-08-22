@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FLAPBOARD — turn any screen into a split-flap board</title>
+<meta name="description" content="A retro Solari-style split-flap display for any TV or screen. Clock, weather, quotes, markets, scores and your own messages — with real flipping letters and colours.">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body data-theme="classic">
+
+<main id="stage">
+  <div id="frame">
+    <div id="board" role="img" aria-label="Split flap display"></div>
+    <div id="qr-overlay" hidden><img alt="QR code"></div>
+  </div>
+  <footer id="statusbar">
+    <span id="status-left">FLAPBOARD</span>
+    <span id="status-right"></span>
+  </footer>
+</main>
+
+<header id="chrome">
+  <div class="chrome-side chrome-brand">
+    <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="3" width="20" height="8" rx="2" fill="#f5a524"/><rect x="2" y="13" width="20" height="8" rx="2" fill="#2a2b30"/></svg>
+    <span>FLAPBOARD</span>
+  </div>
+  <nav class="chrome-actions">
+    <button id="btn-prev" class="chrome-btn" title="Previous slide (←)">◂</button>
+    <div id="dots" title="Slides"></div>
+    <button id="btn-next" class="chrome-btn" title="Next slide (→)">▸</button>
+    <button id="btn-sound" class="chrome-btn" title="Toggle sound (M)">SND</button>
+    <button id="btn-share" class="chrome-btn" title="Copy a setup link for your TVs">SHARE</button>
+    <button id="btn-full" class="chrome-btn" title="Fullscreen (F)">FULL</button>
+    <button id="btn-setup" class="chrome-btn chrome-btn--accent" title="Settings (S)">SETUP</button>
+  </nav>
+</header>
+
+<aside id="drawer" aria-label="Settings" hidden>
+  <div class="drawer-head">
+    <h2>Setup</h2>
+    <button id="btn-close" class="chrome-btn">CLOSE ✕</button>
+  </div>
+
+  <section class="drawer-section">
+    <h3>Display</h3>
+    <label class="field">
+      <span>Theme</span>
+      <select id="sel-theme">
+        <option value="classic">Classic · white on black</option>
+        <option value="amber">Amber terminal</option>
+        <option value="ivory">Ivory daylight</option>
+      </select>
+    </label>
+    <label class="field">
+      <span>Flip speed</span>
+      <select id="sel-speed">
+        <option value="slow">Slow &amp; cinematic</option>
+        <option value="normal" selected>Normal</option>
+        <option value="fast">Fast</option>
+        <option value="off">No animation (max performance)</option>
+      </select>
+    </label>
+    <label class="field">
+      <span>Seconds per slide</span>
+      <input id="inp-dwell" type="number" min="4" max="120" step="1" value="9">
+    </label>
+    <label class="check"><input id="chk-sound" type="checkbox" checked><span>Flip sound</span></label>
+    <label class="check"><input id="chk-clean" type="checkbox"><span>Clean mode · hide buttons until mouse moves</span></label>
+  </section>
+
+  <section class="drawer-section">
+    <h3>Weather &amp; sky</h3>
+    <label class="field">
+      <span>City</span>
+      <input id="inp-city" type="text" placeholder="e.g. Copenhagen" autocomplete="off">
+    </label>
+    <div class="row">
+      <button id="btn-geo" class="ghost-btn">USE MY LOCATION</button>
+      <select id="sel-units"><option value="F">°F</option><option value="C">°C</option></select>
+    </div>
+    <p class="hint" id="weather-status"></p>
+  </section>
+
+  <section class="drawer-section">
+    <h3>Slides</h3>
+    <label class="check"><input id="chk-clock" type="checkbox" checked><span>Clock &amp; date</span></label>
+    <label class="check"><input id="chk-weather" type="checkbox" checked><span>Weather</span></label>
+    <label class="check"><input id="chk-sunmoon" type="checkbox" checked><span>Sunrise / sunset / moon</span></label>
+    <label class="check"><input id="chk-quote" type="checkbox" checked><span>Quote of the hour</span></label>
+    <label class="check"><input id="chk-news" type="checkbox"><span>Tech headlines (Hacker News)</span></label>
+    <label class="check"><input id="chk-markets" type="checkbox" checked><span>Crypto markets</span></label>
+    <label class="field">
+      <span>Markets coins (comma separated ids)</span>
+      <input id="inp-coins" type="text" value="bitcoin,ethereum" spellcheck="false">
+    </label>
+    <label class="check"><input id="chk-stats" type="checkbox"><span>Shopify / custom stats feed</span></label>
+    <label class="field">
+      <span>Stats feed URL (JSON: title + rows)</span>
+      <input id="inp-stats-url" type="text" placeholder="http://localhost:8788/stats" spellcheck="false">
+    </label>
+    <label class="check"><input id="chk-stocks" type="checkbox"><span>Stock quotes</span></label>
+    <label class="field">
+      <span>Stock symbols (comma separated)</span>
+      <input id="inp-stocks" type="text" value="AAPL,NVDA,MSFT,TSLA" spellcheck="false">
+    </label>
+    <p class="hint">Run the included Shopify relay:<br><code>SHOPFY_STORE=you.myshopify.com SHOPIFY_TOKEN=shpat_x node tools/shopify-stats-server.mjs</code></p>
+  </section>
+
+  <section class="drawer-section">
+    <h3>What's on · events</h3>
+    <p class="hint" style="margin:0 0 8px">Fight nights, DJ sets, quizzes — one per line. Optional date first:</p>
+    <label class="field">
+      <textarea id="txt-events" rows="4" placeholder="2026-09-12 TITLE FIGHT NIGHT&#10;FRIDAYS QUIZ + WINGS" spellcheck="false"></textarea>
+    </label>
+    <label class="check"><input id="chk-events" type="checkbox" checked><span>Show events slide</span></label>
+  </section>
+
+  <section class="drawer-section">
+    <h3>Sports scores <em class="beta">beta</em></h3>
+    <label class="check"><input id="chk-sports" type="checkbox"><span>Show scoreboard</span></label>
+    <label class="field">
+      <span>League</span>
+      <select id="sel-league">
+        <option value="nba">NBA</option>
+        <option value="nfl">NFL</option>
+        <option value="mlb">MLB</option>
+        <option value="nhl">NHL</option>
+        <option value="epl">Premier League</option>
+      </select>
+    </label>
+  </section>
+
+  <section class="drawer-section">
+    <h3>Your board</h3>
+    <label class="check"><input id="chk-messages" type="checkbox" checked><span>Rotate my messages</span></label>
+    <label class="field">
+      <span>Messages — one per slide. Use | for line breaks.</span>
+      <textarea id="txt-messages" rows="6" spellcheck="false"></textarea>
+    </label>
+    <p class="hint">Schedule messages by time or day:<br>
+      <code>07:00-11:00 FRESH CROISSANTS</code><br>
+      <code>Mo-Fr 16:00-19:00 HAPPY HOUR IS ON</code><br>
+      QR code slide: <code>QR https://your-menu.com|SCAN FOR MENU</code>
+    </p>
+    <label class="field">
+      <span>Agenda shown on "Today" slide — one per line</span>
+      <textarea id="txt-agenda" rows="4" placeholder="09:30 STANDUP" spellcheck="false"></textarea>
+    </label>
+    <label class="check"><input id="chk-agenda" type="checkbox" checked><span>Show agenda slide</span></label>
+    <div class="row">
+      <label class="field grow"><span>Countdown label</span><input id="inp-cd-label" type="text" placeholder="SUMMER"></label>
+      <label class="field date-w"><span>Date</span><input id="inp-cd-date" type="date"></label>
+    </div>
+    <label class="check"><input id="chk-countdown" type="checkbox" checked><span>Show countdown slide</span></label>
+  </section>
+
+  <section class="drawer-section drawer-foot">
+    <button id="btn-done" class="primary-btn">DONE</button>
+    <p class="hint">Keys: ← → slides · SPACE pause · F fullscreen · S setup · M sound</p>
+  </section>
+</aside>
+
+<div id="toast" role="status"></div>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
