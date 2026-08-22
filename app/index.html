@@ -98,17 +98,16 @@
       <span>Markets coins (comma separated ids)</span>
       <input id="inp-coins" type="text" value="bitcoin,ethereum" spellcheck="false">
     </label>
-    <label class="check"><input id="chk-stats" type="checkbox"><span>Shopify / custom stats feed</span></label>
+    <label class="check"><input id="chk-stats" type="checkbox"><span>Live stats feed (Shopify sales, orders…)</span></label>
     <label class="field">
-      <span>Stats feed URL (JSON: title + rows)</span>
-      <input id="inp-stats-url" type="text" placeholder="http://localhost:8788/stats" spellcheck="false">
+      <span>Stats feed URL — paste the HTTPS URL of your feed</span>
+      <input id="inp-stats-url" type="text" placeholder="https://your-relay.example.com/stats" spellcheck="false">
     </label>
     <label class="check"><input id="chk-stocks" type="checkbox"><span>Stock quotes</span></label>
     <label class="field">
       <span>Stock symbols (comma separated)</span>
       <input id="inp-stocks" type="text" value="AAPL,NVDA,MSFT,TSLA" spellcheck="false">
     </label>
-    <p class="hint">Run the included Shopify relay:<br><code>SHOPFY_STORE=you.myshopify.com SHOPIFY_TOKEN=shpat_x node tools/shopify-stats-server.mjs</code></p>
   </section>
 
   <section class="drawer-section">
