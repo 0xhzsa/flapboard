@@ -1,0 +1,7 @@
+{
+  "name": "flapboard",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Retro split-flap display for any TV or screen. Clock, weather, quotes, markets and your own messages."
+}
