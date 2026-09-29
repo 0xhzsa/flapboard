@@ -1,4 +1,5 @@
-// Capture one real screenshot per slide type for the landing page.
+// Capture one reference screenshot per slide type. Not used by the landing page
+// (it shows the real board running, not images of it), but handy for review.
 import puppeteer from "puppeteer";
 import { mkdirSync } from "fs";
 mkdirSync("assets", { recursive: true });

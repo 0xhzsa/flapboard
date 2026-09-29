@@ -3,6 +3,7 @@
 export const DEFAULTS = {
   theme: "classic",
   speed: "normal", // slow | normal | fast | off
+  flapFit: "standard", // compact | standard | wide
   dwell: 9,
   sound: true,
   clean: false,

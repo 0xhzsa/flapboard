@@ -34,18 +34,21 @@ export function initDrawer(settings, { onChange }) {
   // display
   const theme = $("sel-theme");
   const speed = $("sel-speed");
+  const flapFit = $("sel-flapfit");
   const dwell = $("inp-dwell");
   const soundChk = $("chk-sound");
   const clean = $("chk-clean");
 
   theme.value = settings.theme;
   speed.value = settings.speed;
+  if (flapFit) flapFit.value = settings.flapFit || "standard";
   dwell.value = settings.dwell;
   soundChk.checked = !!settings.sound;
   clean.checked = !!settings.clean;
 
   theme.onchange = bind(() => (settings.theme = theme.value));
   speed.onchange = bind(() => (settings.speed = speed.value));
+  if (flapFit) flapFit.onchange = bind(() => (settings.flapFit = flapFit.value));
   dwell.onchange = bind(() => (settings.dwell = Math.min(120, Math.max(4, parseInt(dwell.value, 10) || 9))));
   soundChk.onchange = bind(() => (settings.sound = soundChk.checked));
   clean.onchange = bind(() => (settings.clean = clean.checked));

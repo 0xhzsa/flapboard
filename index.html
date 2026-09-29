@@ -3,199 +3,147 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>FLAPBOARD — turn any TV into a split-flap board</title>
-<meta name="description" content="The retro airport-terminal display for any screen. Live weather, markets, fight nights and messages that flip themselves at the right hour. One-time price. No subscription.">
-<meta property="og:title" content="FLAPBOARD — turn any TV into a split-flap board">
-<meta property="og:description" content="Retro split-flap display for any screen. Weather, markets, scores, dayparted messages for cafés & bars. $19.99 once. No subscription.">
+<title>FLAPBOARD - turn any screen into a split-flap board</title>
+<meta name="description" content="A split-flap board that runs in your TV's browser. Live weather, markets and your own words on real flipping letters. Free and open source.">
+<meta property="og:title" content="FLAPBOARD - turn any screen into a split-flap board">
+<meta property="og:description" content="A split-flap board that runs in your TV's browser. Live weather, markets and your own words on real flipping letters. Free and open source.">
 <link rel="icon" href="app/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..125,400..800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/landing.css">
 </head>
 <body>
 
 <header class="nav">
   <a class="brand" href="./">
-    <span class="brand-mark"><i></i><i></i></span>
+    <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
     FLAPBOARD
   </a>
   <nav class="nav-links">
-    <a href="#features">FEATURES</a>
-    <a href="#venues">VENUES</a>
-    <a href="#pricing">PRICING</a>
-    <a href="https://x.com/0xhzsa">X</a>
+    <a href="#shows">WHAT IT SHOWS</a>
+    <a href="#wall">ON A WALL</a>
+    <a href="#touch">TOUCH</a>
+    <a href="https://github.com/0xhzsa/flapboard">SOURCE</a>
   </nav>
-  <a class="btn btn-primary nav-cta" href="app/">OPEN LIVE DEMO</a>
+  <a class="btn btn-primary nav-cta" href="app/">OPEN THE BOARD</a>
 </header>
 
 <main>
 
 <!-- ======================= HERO ======================= -->
 <section class="hero">
-  <div class="hero-copy reveal">
-    <p class="kicker">THE $3,500 BOARD. YOURS FOR $19.99.</p>
-    <h1>Turn any TV into a<br><em>split&#8209;flap board.</em></h1>
+  <div class="hero-copy">
+    <h1>Turn any screen into a split-flap board.</h1>
     <p class="sub">
-      Real flipping letters. Real data. Your weather, your prices,
-      your fight nights — flipping on the wall while you sleep.
-      It runs in your TV's browser. No hardware. No subscription. No installer.
+      Open a link, press F. Live weather, markets and your own words, on real
+      flipping letters. No account, no install.
     </p>
     <div class="hero-cta">
-      <a class="btn btn-primary btn-lg" href="app/?demo=1">WATCH IT RUN LIVE</a>
-      <a class="btn btn-ghost btn-lg" href="#venues">RUN IT IN YOUR VENUE</a>
+      <a class="btn btn-primary btn-lg" href="app/">OPEN THE BOARD</a>
+      <a class="btn btn-ghost btn-lg" href="https://github.com/0xhzsa/flapboard">READ THE SOURCE</a>
     </div>
-    <p class="hero-note">SETS UP IN 60 SECONDS &middot; IF YOU CAN TYPE, YOU CAN RUN IT</p>
   </div>
 
-  <div class="hero-tv reveal delay-1">
-    <div class="tv-frame">
-      <div class="tv-screen">
-        <iframe id="boardFrame" title="Live FLAPBOARD demo"></iframe>
-        <div class="tv-glare"></div>
-      </div>
-    </div>
-    <div class="tv-stand"></div>
-    <p class="tv-caption">LIVE — THIS IS THE REAL SOFTWARE RUNNING</p>
+  <div class="hero-board">
+    <div id="heroBoard" aria-label="A live split-flap board showing FLAPBOARD features"></div>
+    <p class="hero-caption"><span id="heroLabel">LOADING</span></p>
   </div>
 </section>
 
-<div class="ticker" aria-hidden="true">
-  <div class="ticker-track">
-    <span>Mo-Fr 07:00-11:00 FRESH CROISSANTS&nbsp;&nbsp;&middot;&nbsp;&nbsp;</span><span>BTC $77.3K&nbsp;+2.4%&nbsp;&nbsp;&middot;&nbsp;&nbsp;</span><span>FRIDAY 21:00 DJ MARCO — FREE ENTRY&nbsp;&nbsp;&middot;&nbsp;&nbsp;</span><span>NBA&nbsp;&nbsp;LAL 102–98 BOS&nbsp;&nbsp;&middot;&nbsp;&nbsp;</span><span>SUNSET 19:42&nbsp;&nbsp;&middot;&nbsp;&nbsp;</span><span>SCAN FOR OUR MENU&nbsp;&nbsp;&middot;&nbsp;&nbsp;</span><span>HAPPY HOUR IS ON&nbsp;&nbsp;&middot;&nbsp;&nbsp;</span>
-    <span>Mo-Fr 07:00-11:00 FRESH CROISSANTS&nbsp;&nbsp;&middot;&nbsp;&nbsp;</span><span>BTC $77.3K&nbsp;+2.4%&nbsp;&nbsp;&middot;&nbsp;&nbsp;</span><span>FRIDAY 21:00 DJ MARCO — FREE ENTRY&nbsp;&nbsp;&middot;&nbsp;&nbsp;</span><span>NBA&nbsp;&nbsp;LAL 102–98 BOS&nbsp;&nbsp;&middot;&nbsp;&nbsp;</span><span>SUNSET 19:42&nbsp;&nbsp;&middot;&nbsp;&nbsp;</span><span>SCAN FOR OUR MENU&nbsp;&nbsp;&middot;&nbsp;&nbsp;</span><span>HAPPY HOUR IS ON&nbsp;&nbsp;&middot;&nbsp;&nbsp;</span>
-  </div>
-</div>
+<!-- ======================= WHAT IT SHOWS ======================= -->
+<section id="shows" class="section">
+  <h2>It shows whatever you point it at.</h2>
+  <div class="clusters">
 
-<!-- ======================= FEATURES ======================= -->
-<section id="features" class="section">
-  <h2 class="reveal">Everything a $3,500 board does.<br><span class="dim">Plus everything it never could.</span></h2>
-  <div class="bento">
-
-    <figure class="cell cell-wide reveal">
-      <img src="assets/slide-weather.png" alt="Weather slide with pixel-art sun and cloud tiles" loading="lazy">
-      <figcaption><strong>Your weather, drawn in tiles.</strong> Real forecasts painted in colored flaps. Guests look up. They stay longer. They order again.</figcaption>
-    </figure>
-
-    <figure class="cell reveal delay-1">
-      <img src="assets/slide-stocks.png" alt="Stocks slide with AAPL NVDA MSFT TSLA quotes" loading="lazy">
-      <figcaption><strong>Wall Street on the back wall.</strong> Stocks and Bitcoin update themselves. All day. Zero effort.</figcaption>
-    </figure>
-
-    <figure class="cell reveal">
-      <figcaption class="txt-first"><strong>Breakfast shows at 7. Happy hour at 4.</strong> Type it once — <code>Mo-Fr 07:00-11:00 FRESH CROISSANTS</code> — and the board flips itself every morning, forever. Menu SaaS charges $60 a month for less.</figcaption>
-      <div class="sched-demo">
-        <div class="sched-row"><span class="seg seg-a" style="--w:34%"><i>07–11 CROISSANTS</i></span><span class="seg seg-b" style="--w:26%"><i>16–19 HAPPY HOUR</i></span><span class="seg seg-c" style="--w:40%"><i>EVENING MENU</i></span></div>
-        <p class="sched-cap">ONE MESSAGE SET · AUTOMATIC ALL DAY</p>
-      </div>
-    </figure>
-
-    <figure class="cell reveal">
-      <img src="assets/slide-events.png" alt="Events slide announcing fight night" loading="lazy">
-      <figcaption><strong>Fight night fills the room.</strong> Title fights. DJ sets. Quiz nights. On the wall, with a countdown. People plan their week around it.</figcaption>
-    </figure>
-
-    <figure class="cell cell-wide reveal delay-1">
-      <img src="assets/slide-markets.png" alt="Crypto markets slide" loading="lazy">
-      <figcaption><strong>Sales flip up as they happen.</strong> Connect a read-only Shopify feed and today's numbers climb on the wall, live. Your staff stops asking "how are we doing?"</figcaption>
-    </figure>
-
-  </div>
-</section>
-
-<!-- ======================= VENUES ======================= -->
-<section id="venues" class="section venues">
-  <div class="venues-grid">
-    <div class="reveal">
-      <h2>Run your whole day<br>from one link.</h2>
-      <p class="sub">
-        Cafés. Bars. Barbershops. Gyms. If you own a TV, this replaces
-        the chalkboard, the printer paper and the monthly software bill.
-      </p>
-      <ol class="steps">
-        <li><span>1</span> Open the link on your TV's browser.</li>
-        <li><span>2</span> Set your city, menu times and QR once.</li>
-        <li><span>3</span> Press F. Walk away. It runs itself.</li>
-      </ol>
-      <a class="btn btn-primary" href="app/?demo=1">WATCH THE VENUE DEMO</a>
-    </div>
-    <div class="venue-card reveal delay-1">
-      <p class="vc-title">THE BOARD, ALL DAY</p>
-      <div class="dayline">
-        <div class="dl-seg" style="--c:#f0c33c;--w:29%">CROISSANTS<i>07:00</i></div>
-        <div class="dl-seg" style="--c:#3fa06a;--w:33%">LUNCH SPECIALS<i>11:00</i></div>
-        <div class="dl-seg" style="--c:#7b61cf;--w:21%">HAPPY HOUR<i>16:00</i></div>
-        <div class="dl-seg" style="--c:#cf3b52;--w:17%">DJ NIGHT<i>20:00</i></div>
-      </div>
-      <ul class="vc-list">
-        <li>Messages flip at the right hour — automatically.</li>
-        <li>Guests scan the QR tile for menus, Wi-Fi or Instagram.</li>
-        <li>Optional read-only Shopify feed: today's sales tick up live.</li>
-        <li>New link = new content on every screen. Instantly.</li>
-      </ul>
-    </div>
-  </div>
-</section>
-
-<!-- ======================= PRICING ======================= -->
-<section id="pricing" class="section">
-  <h2 class="reveal">One payment.<br><span class="dim">No subscriptions. Ever.</span></h2>
-  <div class="pricing">
-    <article class="price-card reveal">
-      <p class="pc-name">HOME USE</p>
-      <p class="pc-price">$0</p>
+    <div class="cluster">
+      <h3>Sky</h3>
+      <p>Pulled live, no API key, nothing to sign up for.</p>
       <ul>
-        <li>Every feature in your browser</li>
-        <li>Home, office or desk</li>
-        <li>No account. No email.</li>
-        <li>Keep it free forever</li>
+        <li>Weather and forecast</li>
+        <li>Air quality</li>
+        <li>Sunrise and sunset</li>
+        <li>Moon phase</li>
       </ul>
-      <a class="btn btn-ghost" href="app/">PLAY NOW</a>
-    </article>
-    <article class="price-card price-card--hot reveal delay-1">
-      <p class="pc-flag">FOR VENUES</p>
-      <p class="pc-name">VENUE LICENSE</p>
-      <p class="pc-price">$19.99 <span>once</span></p>
+    </div>
+
+    <div class="cluster">
+      <h3>Money</h3>
+      <p>Feeds refresh on a timer while you are not looking.</p>
       <ul>
-        <li>Commercial license, every screen you own</li>
-        <li>Kiosk link per location — update from anywhere</li>
-        <li>Dayparted menus, QR tiles, event boards</li>
-        <li>Read-only Shopify sales feed, set up for you</li>
-        <li>DM support from the author</li>
+        <li>Crypto prices</li>
+        <li>Stock quotes</li>
+        <li>Headlines</li>
+        <li>Sports scores</li>
+        <li>Your own sales feed</li>
       </ul>
-      <a class="btn btn-primary" href="https://x.com/0xhzsa">GET THE LICENSE</a>
-      <p class="pc-note">A Vestaboard is $3,500 plus paid channels. This is $19.99, once. If your wall isn't running by tomorrow morning, DM me — I'll set it up with you myself.</p>
-    </article>
+    </div>
+
+    <div class="cluster">
+      <h3>Yours</h3>
+      <p>This is the part that makes it your board rather than a widget.</p>
+      <ul>
+        <li>Messages that change by the hour</li>
+        <li>Events and fight nights</li>
+        <li>A daily agenda</li>
+        <li>Countdowns</li>
+        <li>QR menus and wifi codes</li>
+        <li>A full airport departures board</li>
+      </ul>
+    </div>
+
   </div>
 </section>
 
-<!-- ======================= FAQ ======================= -->
-<section class="section faq">
-  <h2 class="reveal">Questions people DM me</h2>
-  <details class="reveal">
-    <summary>What TVs work?</summary>
-    <p>If it opens a web page, it works. Samsung, LG, Fire TV, Android boxes, Apple TV via AirPlay — or any old laptop taped behind the screen. No install.</p>
-  </details>
-  <details class="reveal">
-    <summary>What happens when the internet dies?</summary>
-    <p>The board keeps flipping its last weather, prices and quotes. Your messages were never online to begin with — they live on your device.</p>
-  </details>
-  <details class="reveal">
-    <summary>How does the Shopify part work?</summary>
-    <p>Create a free custom app in your Shopify admin with read-only orders permission. Run our tiny relay script, paste one URL. Nothing writes to your store — ever.</p>
-  </details>
-  <details class="reveal">
-    <summary>Can you brand it for my shop?</summary>
-    <p>Yes. Venue licenses include your colors, nameplate text and themes. DM me after purchase and it's done the same day.</p>
-  </details>
+<!-- ======================= ON A WALL ======================= -->
+<section id="wall" class="band">
+  <div class="band-inner">
+    <h2>It runs on the screen you already own.</h2>
+    <p class="band-sub">
+      No stick PC, no controller, no monthly channel fee. Anything with a web
+      browser can be a departure board, and a schedule link means your messages
+      change by themselves while nobody is in the room.
+    </p>
+    <ol class="strip">
+      <li><p>Open the link on the screen.</p></li>
+      <li><p>Set your city, your words, your hours.</p></li>
+      <li><p>Press F. Walk away. It keeps running.</p></li>
+    </ol>
+  </div>
 </section>
+
+<!-- ======================= TOUCH ======================= -->
+<section id="touch" class="section touch">
+  <div class="touch-copy">
+    <h2>Your phone becomes the touch screen.</h2>
+    <p>
+      Pair once, and the phone mirrors the board. Tap a flap to change that
+      letter. Type a sentence and it writes itself across the whole board, on
+      the TV, with the clicking and all of it.
+    </p>
+    <ol class="pair-steps">
+      <li>The TV shows a QR code.</li>
+      <li>Scan it with any phone camera.</li>
+      <li>That phone is now a touch screen and a keyboard.</li>
+    </ol>
+  </div>
+  <div class="touch-code">
+    <p class="code-lead">One command, on any machine already on your network:</p>
+    <pre><code>node tools/touch-relay.mjs</code></pre>
+    <p class="code-note">
+      No account, no cloud, no port forwarding. The phone and the TV talk
+      directly over your own wifi, and nothing is sent anywhere else.
+    </p>
+  </div>
+</section>
+
+</main>
 
 <footer class="footer">
-  <p><strong>FLAPBOARD</strong> — made by <a href="https://x.com/0xhzsa">@0xhzsa</a> &middot; DM "BOARD" on X and I'll help you set yours up</p>
+  <p><strong>FLAPBOARD</strong> is free and open source. Clone it, run it, put it on a wall.</p>
   <p class="foot-dim">Inspired by Solari departure boards. Not affiliated with Vestaboard, Inc.</p>
 </footer>
 
-</main>
-<script src="assets/landing.js"></script>
+<script type="module" src="assets/landing.js"></script>
 </body>
 </html>

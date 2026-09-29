@@ -6,6 +6,15 @@ const LEN = CHARS.length;
 const VALID_COLS = new Set(Object.values(COLOR_TILES));
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+// How the flap glyphs are packed. `fw` is the variable-width stretch and
+// `weight` the stroke; `scale` is the matching font size, because widening the
+// glyphs without shrinking the size pushes letters off their own flap.
+export const FLAP_FITS = {
+  compact: { fw: "88%", weight: 700, scale: 0.9 },
+  standard: { fw: "112%", weight: 700, scale: 0.83 },
+  wide: { fw: "125%", weight: 800, scale: 0.74 },
+};
+
 /** A tile state: lettered flap ({ch:'A', col:null}) or solid colour flap ({ch:' ', col:'red'}). */
 const stateOf = (cell) => {
   if (cell && typeof cell === "object") return { ch: " ", col: VALID_COLS.has(cell.c) ? cell.c : null };
@@ -153,13 +162,17 @@ class FlapTile {
 }
 
 export class Board {
-  constructor(root) {
+  constructor(root, { inset } = {}) {
     this.root = root;
+    // space reserved around the grid inside its container (chrome, status bar).
+    // Embedders that have no chrome pass a smaller inset.
+    this.inset = { w: 34, h: 64, ...(inset || {}) };
     this.tiles = [];
     this.stepMs = 52;
     this.maxSteps = 6;
     this.animate = true;
     this.stagger = 26;
+    this.fit = "standard";
     this._build();
     this.layout();
     window.addEventListener("resize", () => this.layout());
@@ -176,25 +189,61 @@ export class Board {
   }
 
   layout() {
-    const stage = document.getElementById("stage");
-    if (!stage) return;
-    const availW = stage.clientWidth - 34;
-    const availH = stage.clientHeight - 64;
-    const gap = availW > 900 ? 4 : 3;
-    const ratio = 1.16;
-    let cw = Math.floor(
-      Math.min((availW - gap * (COLS - 1)) / COLS, (availH - gap * (ROWS - 1)) / ROWS / ratio)
+    // #stage when running as the display app, or the mount parent when the same
+    // engine is embedded elsewhere (landing hero).
+    const ref = document.getElementById("stage") || this.root.parentElement || this.root;
+    const availW = ref.clientWidth - this.inset.w;
+    const availH = ref.clientHeight - this.inset.h;
+    if (availW <= 0 || availH <= 0) return;
+    const gap = availW > 900 ? 2 : 1;
+    const ratio = 1.1;
+    // Never floor this: a minimum tile width makes the grid overflow its parent
+    // on narrow screens, which is what broke the phone demo.
+    const cw = Math.max(
+      4,
+      Math.floor(
+        Math.min((availW - gap * (COLS - 1)) / COLS, (availH - gap * (ROWS - 1)) / ROWS / ratio)
+      )
     );
-    cw = Math.max(cw, 14);
     const chh = Math.round(cw * ratio);
     this.root.style.setProperty("--cw", cw + "px");
     this.root.style.setProperty("--chh", chh + "px");
     this.root.style.setProperty("--gap", gap + "px");
-    this.root.style.setProperty("--fs", Math.round(chh * 0.78) + "px");
+    const fit = FLAP_FITS[this.fit] || FLAP_FITS.standard;
+    this.root.style.setProperty("--fs", Math.round(chh * fit.scale) + "px");
   }
 
   setAll(ch) {
     for (const row of this.tiles) for (const t of row) t.setStatic({ ch, col: null });
+  }
+
+  setFlapFit(name) {
+    const fit = FLAP_FITS[name] || FLAP_FITS.standard;
+    this.fit = FLAP_FITS[name] ? name : "standard";
+    this.root.style.setProperty("--fw", fit.fw);
+    this.root.style.setProperty("--fweight", String(fit.weight));
+    this.layout(); // --fs depends on the fit
+  }
+
+  /** What character is on a given flap right now, as plain text. */
+  snapshot() {
+    return this.tiles.map((row) => row.map((t) => (t.state.col ? " " : t.state.ch)).join(""));
+  }
+
+  /** Flip one flap to the next character. Used by the phone remote. */
+  async nudge(r, c, dir = 1) {
+    const tile = this.tiles[r] && this.tiles[r][c];
+    if (!tile) return null;
+    const from = IDX.get(tile.state.ch) ?? 0;
+    const ch = CHARS[(((from + dir) % LEN) + LEN) % LEN];
+    const target = { ch, col: null };
+    if (!this.animate) {
+      tile._token++;
+      tile.setStatic(target);
+      return ch;
+    }
+    tile.spinTo(target, 0, 3, this.stepMs);
+    return ch;
   }
 
   /** Transition to a new grid; only tiles whose state changed will flip. */

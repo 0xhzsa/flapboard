@@ -8,7 +8,7 @@
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..125,400..800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/styles.css">
 </head>
 <body data-theme="classic">
@@ -30,10 +30,12 @@
     <span>FLAPBOARD</span>
   </div>
   <nav class="chrome-actions">
+    <button id="btn-exit-demo" class="chrome-btn chrome-btn--exit" hidden title="Leave the demo and start your own board">EXIT DEMO</button>
     <button id="btn-prev" class="chrome-btn" title="Previous slide (←)">◂</button>
     <div id="dots" title="Slides"></div>
     <button id="btn-next" class="chrome-btn" title="Next slide (→)">▸</button>
     <button id="btn-sound" class="chrome-btn" title="Toggle sound (M)">SND</button>
+    <button id="btn-touch" class="chrome-btn" title="Use your phone as a touch screen and keyboard (T)">TOUCH</button>
     <button id="btn-share" class="chrome-btn" title="Copy a setup link for your TVs">SHARE</button>
     <button id="btn-full" class="chrome-btn" title="Fullscreen (F)">FULL</button>
     <button id="btn-setup" class="chrome-btn chrome-btn--accent" title="Settings (S)">SETUP</button>
@@ -67,6 +69,14 @@
         <option value="normal" selected>Normal</option>
         <option value="fast">Fast</option>
         <option value="off">No animation (max performance)</option>
+      </select>
+    </label>
+    <label class="field">
+      <span>Letter fit</span>
+      <select id="sel-flapfit">
+        <option value="compact">Compact · more characters per line</option>
+        <option value="standard" selected>Standard</option>
+        <option value="wide">Wide · biggest, boldest letters</option>
       </select>
     </label>
     <label class="field">
@@ -199,6 +209,47 @@
 </aside>
 
 <div id="toast" role="status"></div>
+<div id="rotate-hint" hidden>ROTATE YOUR PHONE. 22 COLUMNS NEED THE WIDTH.</div>
+
+<!-- pairing panel: TV side -->
+<aside id="pair" aria-label="Pair a phone" hidden>
+  <div class="pair-head">
+    <h2>Use your phone</h2>
+    <button id="pair-close" class="chrome-btn">CLOSE</button>
+  </div>
+  <div class="pair-body">
+    <p class="pair-lead">Your phone becomes a touch screen and a keyboard for the board. Scan this with the phone's camera app.</p>
+    <div id="pair-qr" class="pair-qr"><img alt="QR code to pair a phone"></div>
+    <p id="pair-room" class="pair-room"></p>
+    <p id="pair-status" class="pair-status">CONNECTING...</p>
+    <div id="pair-help" class="pair-help" hidden>
+      <p>Open this page on the TV from your network address instead of <code>localhost</code>, so the phone can reach it.</p>
+      <p id="pair-lan" class="pair-lan"></p>
+    </div>
+  </div>
+</aside>
+
+<!-- remote: phone side -->
+<section id="remote" hidden>
+  <header class="remote-head">
+    <span>FLAPBOARD REMOTE</span>
+    <span id="remote-status">CONNECTING</span>
+  </header>
+  <div id="remote-mirror" class="remote-mirror" aria-label="Board mirror. Tap a flap to change it."></div>
+  <p class="remote-hint">Tap any flap to change that letter. Type below to write a message across the whole board.</p>
+  <form id="remote-form" class="remote-form">
+    <input id="remote-input" type="text" placeholder="TYPE A MESSAGE" maxlength="60" autocomplete="off" autocapitalize="characters" spellcheck="false">
+    <button type="submit" class="primary-btn">SEND</button>
+  </form>
+  <div class="remote-bar">
+    <button class="ghost-btn" data-cmd="prev">PREV</button>
+    <button class="ghost-btn" data-cmd="next">NEXT</button>
+    <button class="ghost-btn" data-cmd="pause">PAUSE</button>
+    <button class="ghost-btn" data-cmd="sound">SOUND</button>
+    <button class="ghost-btn" data-cmd="exit">EXIT DEMO</button>
+  </div>
+</section>
+
 <script src="js/vendor/qrcode.js"></script>
 <script type="module" src="js/main.js"></script>
 </body>

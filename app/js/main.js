@@ -11,6 +11,8 @@ import { cachedStocks, fetchStocks, demoStocks } from "./stocks.js";
 import { cachedCalendarFor, fetchCalendar } from "./calendar.js";
 import { cachedAqi, fetchAqi } from "./aqi.js";
 import { initDrawer, renderDots, toast, setWeatherStatus } from "./ui.js";
+import { initRemote, initPairing } from "./touch.js";
+import { messageSlide } from "./slides.js";
 import { sound } from "./sound.js";
 
 const $ = (id) => document.getElementById(id);
@@ -22,19 +24,25 @@ if (params.get("city")) settings.city = params.get("city");
 if (params.get("theme")) settings.theme = params.get("theme");
 if (params.get("units")) settings.units = params.get("units").toUpperCase() === "C" ? "C" : "F";
 if (params.get("speed")) settings.speed = params.get("speed");
+if (params.get("fit")) settings.flapFit = params.get("fit");
 if (params.get("league")) settings.league = params.get("league");
 if (params.get("dwell")) settings.dwell = Math.min(120, Math.max(4, parseInt(params.get("dwell"), 10) || settings.dwell));
 if (params.has("quiet")) settings.sound = false;
 
 /* ---------- demo mode (for the landing page embed & tweet) ---------- */
 const DEMO = params.has("demo");
+// Must be set before any control can fire: initDrawer saves on change, and the
+// old code only set this inside onChange, so the first edit leaked into storage.
+if (DEMO) window.__NO_SAVE = true;
 if (DEMO) {
   settings.city = settings.city || "New York";
   settings.units = "F";
   settings.theme = "classic";
   settings.dwell = 6;
-  settings.clean = true;
+  settings.clean = false; // a demo whose toolbar vanishes looks broken on a phone
   settings.sound = false;
+  // A demo defaults to the widest fit, but an explicit ?fit= still wins.
+  if (!params.get("fit")) settings.flapFit = "wide";
   Object.assign(settings.slides, {
     clock: true, weather: true, sunmoon: true, quote: true, news: true,
     sports: true, markets: true, stocks: true, stats: false,
@@ -48,6 +56,7 @@ if (DEMO) {
   ];
 }
 const lockedSlide = params.has("lock") ? params.get("lock") || "clock" : null;
+const REMOTE_MODE = params.has("remote"); // this device is the phone, not a display
 const msgsParam = params.get("msg");
 const sessionMessages = msgsParam ? msgsParam.split(";").map((s) => s.trim()).filter(Boolean) : null;
 
@@ -64,6 +73,7 @@ function applySpeed() {
   }
 }
 applySpeed();
+board.setFlapFit(settings.flapFit);
 sound.enabled = !!settings.sound;
 
 /* ---------- data layer ---------- */
@@ -199,6 +209,7 @@ let slides = [];
 let idx = 0;
 let timer = null;
 let paused = false;
+let touch = null; // phone remote pairing API, set up after the controls exist
 const dotsEl = $("dots");
 const qrOverlay = $("qr-overlay");
 
@@ -259,6 +270,7 @@ async function show(i, opts = {}) {
 
   setQr(slide.overlay || null);
   updateStatus();
+  touch?.pushState?.();
   scheduleNext();
 }
 
@@ -271,16 +283,61 @@ function scheduleNext() {
 function next() { show(idx + 1); }
 function prev() { show(idx - 1); }
 
-function togglePause(force) {
+function togglePause(force, silent) {
   paused = force != null ? force : !paused;
-  toast(paused ? "ROTATION PAUSED" : "ROTATION RESUMED");
+  if (!silent) toast(paused ? "ROTATION PAUSED" : "ROTATION RESUMED");
   $("status-left").textContent = paused ? "PAUSED" : "FLAPBOARD";
   if (!paused) scheduleNext();
+}
+
+/* A message typed on the phone becomes a slide in front of the rotation, then
+   hands control back to the board after half a minute. */
+let typedTimer = null;
+function showTyped(text) {
+  const body = text.trim();
+  if (!body) return;
+  const { grid, overlay } = messageSlide(body);
+  const at = slides.findIndex((s) => s.id === "typed");
+  if (at >= 0) slides.splice(at, 1);
+  slides.unshift({ id: "typed", label: "TYPED", grid, overlay });
+  togglePause(true, true);
+  show(0);
+  clearTimeout(typedTimer);
+  typedTimer = setTimeout(() => {
+    const now = slides.findIndex((s) => s.id === "typed");
+    if (now >= 0) slides.splice(now, 1);
+    if (idx >= slides.length) idx = 0;
+    togglePause(false, true);
+    show(idx);
+  }, 30000);
+}
+
+/* Flaps tapped on the phone have to survive the 15s time-based redraw, or the
+   feature silently undoes itself a second later. Keyed by slide id, so an edit
+   sticks to the slide it was made on and not to whatever is on screen now. */
+const manualEdits = new Map();
+
+function applyEdits(slide) {
+  const edits = manualEdits.get(slide?.id);
+  if (!edits) return;
+  for (const key of Object.keys(edits)) {
+    const [r, c] = key.split(",").map(Number);
+    if (slide.grid[r]) slide.grid[r][c] = edits[key];
+  }
+}
+
+function recordEdit(r, c, ch) {
+  const slide = slides[idx];
+  if (!slide) return;
+  if (!manualEdits.has(slide.id)) manualEdits.set(slide.id, {});
+  manualEdits.get(slide.id)[`${r},${c}`] = ch;
+  applyEdits(slide);
 }
 
 function softRedraw() {
   rebuild();
   const slide = slides[idx];
+  applyEdits(slide);
   board.show(slide.grid);
   renderDots(dotsEl, slides.length, idx);
   if (slide.overlay) {
@@ -341,9 +398,9 @@ setInterval(() => refreshNowPlaying(), 90 * 1000);
 /* ---------- controls ---------- */
 const drawer = initDrawer(settings, {
   onChange: () => {
-document.body.dataset.theme = settings.theme;
-if (DEMO) window.__NO_SAVE = true; // public visitors can play freely, nothing persists
+    document.body.dataset.theme = settings.theme;
     applySpeed();
+    board.setFlapFit(settings.flapFit);
     sound.enabled = !!settings.sound;
     rebuild();
     show(idx);
@@ -355,6 +412,12 @@ if (DEMO) window.__NO_SAVE = true; // public visitors can play freely, nothing p
     if (settings.slides.nowplaying && settings.nowPlayingUrl) refreshNowPlaying();
   },
 });
+
+/* leaving the demo drops every demo override and starts a clean board */
+$("btn-exit-demo").onclick = () => {
+  window.location.href = location.pathname;
+};
+$("btn-exit-demo").hidden = !DEMO;
 
 $("btn-prev").onclick = prev;
 $("btn-next").onclick = next;
@@ -383,39 +446,54 @@ window.addEventListener("keydown", (e) => {
     case "f": case "F": toggleFullscreen(); break;
     case "m": case "M": $("btn-sound").click(); break;
     case "s": case "S": drawer.isOpen ? drawer.close() : drawer.open(); break;
+    case "t": case "T": if (touch) touch.open(); break;
     case "Escape": drawer.close(); break;
   }
 });
 
-/* idle cursor + chrome hide */
+/* idle cursor + chrome hide — clean mode is opt-in, otherwise the toolbar
+   disappeared on touch screens where there is no cursor to wake it */
 let idleT = null;
 function poke() {
   document.body.classList.remove("idle");
   clearTimeout(idleT);
-  idleT = setTimeout(() => document.body.classList.add("idle"), 3500);
+  if (settings.clean) idleT = setTimeout(() => document.body.classList.add("idle"), 3500);
 }
 ["mousemove", "pointerdown", "keydown", "touchstart"].forEach((ev) => window.addEventListener(ev, poke));
 poke();
 
-/* ---------- boot ---------- */
-(async function boot() {
-  rebuild();
-  try {
-    await board.boot(greetingSlide(new Date()));
-  } catch (e) {}
-  await show(0);
-})();
+/* portrait phones cannot fit 22 columns legibly, so say so instead of
+   rendering an unreadable board */
+const rotateHint = $("rotate-hint");
+function syncRotateHint() {
+  if (!rotateHint) return;
+  rotateHint.hidden = !(window.innerWidth < 700 && window.innerHeight > window.innerWidth);
+}
+syncRotateHint();
+window.addEventListener("resize", syncRotateHint);
+window.addEventListener("orientationchange", syncRotateHint);
 
-refreshWeather().then(() => {
-  if (settings.city && settings.city !== lastFetchedCity) refreshWeather();
-});
-refreshMarkets();
-refreshNews();
-refreshSports();
-refreshStats();
-if (settings.slides.stocks || params.has("demo")) refreshStocks();
-refreshCalendar();
-refreshNowPlaying();
+/* ---------- boot ---------- */
+if (!REMOTE_MODE) {
+  (async function boot() {
+    rebuild();
+    try {
+      await board.boot(greetingSlide(new Date()));
+    } catch (e) {}
+    await show(0);
+  })();
+
+  refreshWeather().then(() => {
+    if (settings.city && settings.city !== lastFetchedCity) refreshWeather();
+  });
+  refreshMarkets();
+  refreshNews();
+  refreshSports();
+  refreshStats();
+  if (settings.slides.stocks || params.has("demo")) refreshStocks();
+  refreshCalendar();
+  refreshNowPlaying();
+}
 
 /* ---------- share link (kiosk setup for venues) ---------- */
 function buildShareUrl() {
@@ -424,6 +502,7 @@ function buildShareUrl() {
   if (settings.units) p.set("units", settings.units);
   if (settings.theme !== "classic") p.set("theme", settings.theme);
   if (settings.speed !== "normal") p.set("speed", settings.speed);
+  if (settings.flapFit && settings.flapFit !== "standard") p.set("fit", settings.flapFit);
   if (settings.dwell !== 9) p.set("dwell", settings.dwell);
   const msgs = (settings.messages || []).filter(Boolean);
   if (msgs.length) p.set("msg", msgs.join(";"));
@@ -439,3 +518,22 @@ $("btn-share").onclick = async () => {
   }
 };
 $("btn-share").hidden = DEMO;
+
+/* ---------- phone as touch screen / keyboard ---------- */
+if (REMOTE_MODE) {
+  // the phone half never needs a board, so skip the whole display loop
+  initRemote();
+} else {
+  touch = initPairing({
+    board,
+    onEdit: recordEdit,
+    onTyped: showTyped,
+    cmds: {
+      next,
+      prev,
+      pause: () => togglePause(),
+      sound: () => $("btn-sound").click(),
+    },
+  });
+  $("btn-touch").onclick = () => touch.open();
+}
