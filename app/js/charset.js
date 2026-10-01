@@ -25,6 +25,7 @@ export function emptyGrid() {
 const col = (code) => ({ c: COLOR_TILES[code] });
 
 export function centerRow(grid, rowIdx, text) {
+  if (rowIdx < 0 || rowIdx >= grid.length) return; // a slide can only hold ROWS
   const t = String(text).toUpperCase().slice(0, COLS);
   const pad = Math.max(0, Math.floor((COLS - t.length) / 2));
   const chars = t.split("");

@@ -1,5 +1,5 @@
 import { Board } from "./board.js";
-import { loadSettings } from "./storage.js";
+import { loadSettings, saveSettings } from "./storage.js";
 import { buildSlides, greetingSlide } from "./slides.js";
 import { quoteForHour } from "./quotes.js";
 import { cachedWeather, getWeather } from "./weather.js";
@@ -10,6 +10,7 @@ import { cachedStatsFor, fetchStats } from "./stats.js";
 import { cachedStocks, fetchStocks, demoStocks } from "./stocks.js";
 import { cachedCalendarFor, fetchCalendar } from "./calendar.js";
 import { cachedAqi, fetchAqi } from "./aqi.js";
+import { loadRecipe } from "./recipes.js";
 import { initDrawer, renderDots, toast, setWeatherStatus } from "./ui.js";
 import { initRemote, initPairing } from "./touch.js";
 import { messageSlide } from "./slides.js";
@@ -25,6 +26,10 @@ if (params.get("theme")) settings.theme = params.get("theme");
 if (params.get("units")) settings.units = params.get("units").toUpperCase() === "C" ? "C" : "F";
 if (params.get("speed")) settings.speed = params.get("speed");
 if (params.get("fit")) settings.flapFit = params.get("fit");
+if (params.has("recipe")) {
+  settings.recipe = params.get("recipe") || "";
+  settings.slides.recipes = true;
+}
 if (params.get("league")) settings.league = params.get("league");
 if (params.get("dwell")) settings.dwell = Math.min(120, Math.max(4, parseInt(params.get("dwell"), 10) || settings.dwell));
 if (params.has("quiet")) settings.sound = false;
@@ -47,6 +52,7 @@ if (DEMO) {
     clock: true, weather: true, sunmoon: true, quote: true, news: true,
     sports: true, markets: true, stocks: true, stats: false,
     events: true, agenda: true, countdown: true, messages: true,
+    recipes: true,
   });
   settings.messages = [
     "WELCOME TO FLAPBOARD|YOUR TV IS THE BOARD",
@@ -88,6 +94,7 @@ const data = {
   aqi: cachedAqi(),
   nowPlaying: null,
   quote: quoteForHour(),
+  recipe: null,
 };
 {
   const wc = cachedWeather();
@@ -201,6 +208,21 @@ async function refreshStocks() {
     }
   } finally {
     stocksBusy = false;
+  }
+}
+
+let recipeBusy = false;
+async function refreshRecipes(manual = false) {
+  if (recipeBusy) return;
+  recipeBusy = true;
+  try {
+    data.recipe = await loadRecipe(settings.recipe);
+    if (manual) toast(`RECIPE: ${String(data.recipe?.name || "").toUpperCase()}`);
+    softRedraw();
+  } catch (e) {
+    toast("RECIPE FETCH FAILED");
+  } finally {
+    recipeBusy = false;
   }
 }
 
@@ -388,6 +410,7 @@ setInterval(() => {
 
 setInterval(() => refreshWeather(), 10 * 60 * 1000);
 setInterval(() => refreshMarkets(), 5 * 60 * 1000);
+setInterval(() => refreshRecipes(), 6 * 60 * 60 * 1000);
 setInterval(() => refreshNews(), 15 * 60 * 1000);
 setInterval(() => refreshSports(), 3 * 60 * 1000);
 setInterval(() => refreshStats(), 2 * 60 * 1000);
@@ -410,6 +433,16 @@ const drawer = initDrawer(settings, {
     if (settings.slides.stats && settings.statsUrl) refreshStats();
     if (settings.slides.calendar && settings.calendarUrl) refreshCalendar();
     if (settings.slides.nowplaying && settings.nowPlayingUrl) refreshNowPlaying();
+  },
+  onRecipe: (pin) => {
+    // ANOTHER CAKE clears the pin so the next load rolls a different one
+    if (pin === null) {
+      settings.recipe = "";
+      const inp = document.getElementById("inp-recipe");
+      if (inp) inp.value = "";
+      saveSettings(settings);
+    }
+    if (settings.slides.recipes) refreshRecipes(true);
   },
 });
 
@@ -493,6 +526,7 @@ if (!REMOTE_MODE) {
   if (settings.slides.stocks || params.has("demo")) refreshStocks();
   refreshCalendar();
   refreshNowPlaying();
+  if (settings.slides.recipes) refreshRecipes();
 }
 
 /* ---------- share link (kiosk setup for venues) ---------- */
@@ -506,6 +540,7 @@ function buildShareUrl() {
   if (settings.dwell !== 9) p.set("dwell", settings.dwell);
   const msgs = (settings.messages || []).filter(Boolean);
   if (msgs.length) p.set("msg", msgs.join(";"));
+  if (settings.slides.recipes) p.set("recipe", settings.recipe || "");
   return location.origin + location.pathname.replace(/(index\.html)?$/, "") + "?" + p.toString();
 }
 $("btn-share").onclick = async () => {

@@ -4,6 +4,7 @@ import { fmtPrice, tickerSymbol } from "./markets.js";
 import { fmtStockPrice } from "./stocks.js";
 import { spriteForCode, SPRITES } from "./icons.js";
 import { parseSchedule, isMessageActive, isQrMessage } from "./schedule.js";
+import { shortMeasure, shortIngredient } from "./recipes.js";
 
 const DAYS = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"];
 const MONTHS = ["JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE", "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER"];
@@ -328,6 +329,84 @@ export function statsSlide(statsData) {
   return g;
 }
 
+/**
+ * A cake recipe as a short run of slides. A 6x22 board cannot hold one, so the
+ * name, the ingredients, the method and a QR for the full thing each get a
+ * slide and the rotation does the reading for you.
+ */
+export function recipeSlides(meal) {
+  if (!meal) return [];
+  const out = [];
+
+  const g = emptyGrid();
+  paintRun(g, 0, 0, "V", 1);
+  paintRun(g, 0, COLS - 1, "V", 1);
+  centerRow(g, 0, "CAKE RECIPE");
+  const title = wrapText(String(meal.name).toUpperCase(), COLS).slice(0, 2);
+  if (title.length === 1) centerRow(g, 2, title[0]);
+  else {
+    centerRow(g, 1, title[0]);
+    centerRow(g, 2, title[1]);
+  }
+  const tag = [meal.area, ...(meal.tags || [])].filter(Boolean).join(" ").toUpperCase();
+  if (tag) centerRow(g, 4, tag.length <= COLS ? tag : tag.slice(0, COLS).replace(/\s\S*$/, ""));
+  const n = (meal.ingredients || []).length;
+  centerRow(g, ROWS - 1, n ? `${n} INGREDIENTS` : "NO LIST");
+  out.push({ id: "recipe", label: "RECIPE", grid: g });
+
+  // Page by whole items, never mid-sentence: an ingredient or a step is either
+  // fully on one slide or fully on the next.
+  const page = (id, label, header, groups, code, max) => {
+    // one item longer than a whole slide has to be broken somewhere
+    const items = groups.flatMap((g) => (g.length > 4 ? g.reduce((acc, l, i) => (i % 4 ? acc[acc.length - 1].push(l) : acc.push([l]), acc), []) : [g]));
+    const pages = [];
+    let cur = [];
+    for (const g of items) {
+      if (cur.length + g.length > 4 && cur.length) {
+        pages.push(cur);
+        cur = [];
+      }
+      if (pages.length === max) break;
+      cur.push(...g);
+    }
+    if (cur.length && pages.length < max) pages.push(cur);
+
+    const shown = pages.length;
+    const slides = pages.map((lines, i) => {
+      const gr = emptyGrid();
+      centerRow(gr, 0, shown > 1 ? `${header} ${i + 1}/${shown}` : header);
+      lines.forEach((line, r) => centerRow(gr, r + 1, line));
+      corners(gr, code);
+      return { id, label, grid: gr };
+    });
+    // say so when the rotation had to drop the tail, and where to find it
+    const drawn = pages.reduce((n, l) => n + l.length, 0);
+    if (drawn < groups.reduce((n, g) => n + g.length, 0) && slides.length) {
+      centerRow(slides[slides.length - 1].grid, ROWS - 1, "...SEE QR");
+    }
+    return slides;
+  };
+
+  const shopping = (meal.ingredients || [])
+    .map((i) => [shortMeasure(i.measure), shortIngredient(i.name)].filter(Boolean).join(" "))
+    .filter(Boolean)
+    .map((t) => wrapText(t, COLS));
+  out.push(...page("recipe-buy", "INGREDIENTS", "YOU WILL NEED", shopping, "Y", 3));
+
+  const method = (meal.instructions || [])
+    .map((s, i) => wrapText(`${i + 1}. ${String(s).toUpperCase()}`, COLS));
+  out.push(...page("recipe-method", "METHOD", "METHOD", method, "G", 4));
+
+  const q = emptyGrid();
+  centerRow(q, 0, "FULL RECIPE");
+  centerRow(q, 2, "SCAN FOR IT");
+  centerRow(q, 4, String(meal.name).toUpperCase().slice(0, COLS));
+  corners(q, "B");
+  out.push({ id: "recipe-qr", label: "QR", grid: q, overlay: meal.url || null });
+
+  return out;
+}
+
 /** Build the ordered slide list from current settings + live data. */
 export function buildSlides(settings, data, now = new Date()) {
   const list = [];
@@ -359,6 +438,9 @@ export function buildSlides(settings, data, now = new Date()) {
   }
   if (S.stats && data.stats && settings.statsUrl) {
     list.push({ id: "stats", label: "STATS", grid: statsSlide(data.stats) });
+  }
+  if (S.recipes && data.recipe) {
+    for (const s of recipeSlides(data.recipe)) list.push(s);
   }
   if (S.agenda && Array.isArray(settings.agenda) && settings.agenda.length) {
     list.push({ id: "agenda", label: "TODAY", grid: agendaSlide(settings.agenda) });

@@ -45,7 +45,10 @@ export const DEFAULTS = {
     calendar: false,
     nowplaying: false,
     departures: false,
+    recipes: false,
   },
+  // empty means "pick a random cake on each load"; or a name/id to pin one
+  recipe: "",
   countdowns: [{ label: "SUMMER", date: nextSummer() }],
   agenda: ["08:00 COFFEE FIRST", "09:30 STANDUP", "18:00 GYM"],
   messages: [

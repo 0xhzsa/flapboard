@@ -24,7 +24,7 @@ export function setWeatherStatus(text) {
 }
 
 /** Wire every control in the drawer to the settings object. */
-export function initDrawer(settings, { onChange }) {
+export function initDrawer(settings, { onChange, onRecipe }) {
   const bind = (fn) => () => {
     fn();
     saveSettings(settings);
@@ -102,6 +102,7 @@ export function initDrawer(settings, { onChange }) {
     "chk-calendar": "calendar",
     "chk-nowplaying": "nowplaying",
     "chk-departures": "departures",
+    "chk-recipes": "recipes",
     "chk-sports": "sports",
     "chk-agenda": "agenda",
     "chk-countdown": "countdown",
@@ -112,6 +113,15 @@ export function initDrawer(settings, { onChange }) {
     el.checked = !!(settings.slides[key] ?? false);
     el.onchange = bind(() => (settings.slides[key] = el.checked));
   }
+
+  // cake recipes
+  const recipe = $("inp-recipe");
+  recipe.value = settings.recipe || "";
+  recipe.onchange = bind(() => {
+    settings.recipe = recipe.value.trim();
+    onRecipe?.(settings.recipe);
+  });
+  $("btn-recipe-refresh").onclick = () => onRecipe?.(null);
 
   // markets / sports
   const coins = $("inp-coins");

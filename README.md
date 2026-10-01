@@ -100,6 +100,7 @@ themselves after 3.5 s of inactivity (display mode).
 | `dwell` | `?dwell=15` | seconds per slide (4–120) |
 | `quiet` | `?quiet=1` | force silent |
 | `demo` | `?demo=1` | preset showreel, changes are not saved |
+| `recipe` | `?recipe=carrot cake` | show that dish (turns the recipe rotation on); blank picks a new one each load |
 | `remote` | `?remote#K7QP` | this device is the phone, paired to room `K7QP` |
 
 Example kiosk link:
@@ -112,6 +113,7 @@ for that session only.
 
 - Weather: [open-meteo.com](https://open-meteo.com) — free, no key
 - Markets: [coingecko.com](https://coingecko.com) simple price API — free, no key
+- Recipes: [themealdb.com](https://www.themealdb.com) free test key `1`, no signup
 - Quotes: bundled local pack (rotates hourly)
 
 Everything degrades gracefully offline: last cached weather/markets keep
@@ -139,6 +141,7 @@ app/js/schedule.js   time- and day-windowed messages
 app/js/icons.js      sprite sheets for weather/icons
 app/js/calendar.js   ICS events
 app/js/stats.js      your own JSON stats feed
+app/js/recipes.js    TheMealDB client, cache, bundled fallback cakes
 app/js/quotes.js     quote pack
 app/js/sound.js      synthesized mechanical clicks (WebAudio)
 app/js/storage.js    settings persistence
@@ -149,6 +152,7 @@ app/js/vendor/       qrcode generator (bundled, no CDN)
 serve.js             zero-dep static server
 tools/touch-relay.mjs  static server + local pairing relay
 tools/qa-touch.mjs      end-to-end test of the phone pairing
+tools/qa-recipes.mjs    end-to-end test of the recipe slides
 tools/measure.mjs       flap geometry measurements
 tools/audit.mjs         landing design pre-flight checks
 ```
@@ -157,6 +161,7 @@ tools/audit.mjs         landing design pre-flight checks
 
 ```bash
 node tools/qa-touch.mjs "http://<your-lan-ip>:8788"   # phone pairing, 20 checks
+node tools/qa-recipes.mjs "http://localhost:8787/app/?demo=1&recipe=carrot"
 node tools/measure.mjs "http://localhost:8787/app/?demo=1" 1600 900
 node tools/audit.mjs "http://localhost:8787/" 1440 900
 ```
