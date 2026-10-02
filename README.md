@@ -100,7 +100,8 @@ themselves after 3.5 s of inactivity (display mode).
 | `dwell` | `?dwell=15` | seconds per slide (4–120) |
 | `quiet` | `?quiet=1` | force silent |
 | `demo` | `?demo=1` | preset showreel, changes are not saved |
-| `recipe` | `?recipe=carrot cake` | show that dish (turns the recipe rotation on); blank picks a new one each load |
+| `recipe` | `?recipe=carrot cake` | show that cake (turns the recipe run on) |
+| `runits` | `?runits=us` | recipe units: `metric` (default), `us`, `as-written` |
 | `remote` | `?remote#K7QP` | this device is the phone, paired to room `K7QP` |
 
 Example kiosk link:
@@ -108,6 +109,36 @@ Example kiosk link:
 
 Settings you change in the drawer persist in `localStorage`; URL params win
 for that session only.
+
+## Cake recipes
+
+Recipes are the one slide type that is a *run* rather than a single frame,
+because a cook following steps needs to be able to come back to them. Turning
+`Show a cake recipe on the board` on inserts the run into the rotation:
+
+1. **Before you start** — the oven temperature plus whatever gear the recipe
+   actually names (tin, mixer, sieve, fridge space, scales, baking paper)
+2. **Title** — the cake, its counts, and one step per slide follows
+3. **Shopping list** — every ingredient converted to your units, paginated
+4. **Method** — one step per slide, `STEP 3 OF 8`, split across `CONT 2/3`
+   slides when a step is too long for four lines
+5. **QR** — the full recipe to hand to someone standing at the board
+
+Each slide picks its own dwell time from the words on it, so a two-word step
+does not sit on the board for half a minute. Press `R`, or the phone's `CAKE`
+button, to jump into the run and back out again.
+
+Units come from the drawer (`metric`, `US cups`, `as written`) or `?runits=`.
+Quantities are converted where they can be and left alone where they cannot:
+ounces and pounds for a US oven, cups and spoons for a US cook, both scales for
+an oven temperature because ovens disagree. Unicode fractions from the source
+are normalised, and pancake-shaped search results are dropped before they can
+reach the board.
+
+A cake never changes underneath you. The chosen id is remembered, a reload
+brings the same one back, and changing the theme, city or flap size does not
+touch it. `ANOTHER CAKE` is the only thing that picks a different one, and it
+never repeats the one you just read.
 
 ## Data sources
 
@@ -141,7 +172,8 @@ app/js/schedule.js   time- and day-windowed messages
 app/js/icons.js      sprite sheets for weather/icons
 app/js/calendar.js   ICS events
 app/js/stats.js      your own JSON stats feed
-app/js/recipes.js    TheMealDB client, cache, bundled fallback cakes
+app/js/recipes.js    TheMealDB client, cake curation, unit/temperature
+                    conversion, gear detection, bundled fallback cakes
 app/js/quotes.js     quote pack
 app/js/sound.js      synthesized mechanical clicks (WebAudio)
 app/js/storage.js    settings persistence
@@ -152,7 +184,8 @@ app/js/vendor/       qrcode generator (bundled, no CDN)
 serve.js             zero-dep static server
 tools/touch-relay.mjs  static server + local pairing relay
 tools/qa-touch.mjs      end-to-end test of the phone pairing
-tools/qa-recipes.mjs    end-to-end test of the recipe slides
+tools/qa-recipes.mjs    end-to-end test of the recipe run
+tools/qa-units.mjs      unit conversion, curation and slide shape (no browser)
 tools/measure.mjs       flap geometry measurements
 tools/audit.mjs         landing design pre-flight checks
 ```
@@ -160,8 +193,9 @@ tools/audit.mjs         landing design pre-flight checks
 ## Development
 
 ```bash
-node tools/qa-touch.mjs "http://<your-lan-ip>:8788"   # phone pairing, 20 checks
-node tools/qa-recipes.mjs "http://localhost:8787/app/?demo=1&recipe=carrot"
+node tools/qa-touch.mjs "http://<your-lan-ip>:8788"   # phone pairing, 21 checks
+node tools/qa-units.mjs                                # units + slide shape, no browser
+node tools/qa-recipes.mjs "http://localhost:8787/app/?demo=1&quiet=1"
 node tools/measure.mjs "http://localhost:8787/app/?demo=1" 1600 900
 node tools/audit.mjs "http://localhost:8787/" 1440 900
 ```

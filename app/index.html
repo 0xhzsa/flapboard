@@ -164,13 +164,18 @@
   <section class="drawer-section">
     <h3>Cake recipes <em class="beta">beta</em></h3>
     <label class="check"><input id="chk-recipes" type="checkbox"><span>Show a cake recipe on the board</span></label>
-    <p class="hint">Pulled live from themealdb.com, no key needed. One cake becomes several slides: the name, the shopping list, the method, then a QR for the full recipe. Works offline after the first load.</p>
-<label class="field">
-      <span>Which cake (blank picks a new one each time)</span>
+    <p class="hint">Pulled live from themealdb.com, no key needed, and it keeps working offline. The board walks you through it: what to get out first, the shopping list, then one step per slide at a readable pace. Press <b>R</b> on the keyboard to jump in and out.</p>
+    <label class="field">
+      <span>Which cake (blank keeps the current one)</span>
       <input id="inp-recipe" type="text" placeholder="carrot cake" spellcheck="false">
     </label>
     <div class="row">
       <button id="btn-recipe-refresh" class="ghost-btn">ANOTHER CAKE</button>
+      <select id="sel-recipe-units" aria-label="Recipe units">
+        <option value="metric">metric</option>
+        <option value="us">US cups</option>
+        <option value="as-written">as written</option>
+      </select>
     </div>
   </section>
 
@@ -257,6 +262,7 @@
   <div class="remote-bar">
     <button class="ghost-btn" data-cmd="prev">PREV</button>
     <button class="ghost-btn" data-cmd="next">NEXT</button>
+    <button class="ghost-btn" id="btn-cmd-recipe" data-cmd="recipe" hidden>CAKE</button>
     <button class="ghost-btn" data-cmd="pause">PAUSE</button>
     <button class="ghost-btn" data-cmd="sound">SOUND</button>
     <button class="ghost-btn" data-cmd="exit">EXIT DEMO</button>

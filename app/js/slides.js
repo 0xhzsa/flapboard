@@ -2,9 +2,9 @@ import { ROWS, COLS, emptyGrid, centerRow, wrapText, placeCentered, paintRun, st
 import { codeText, moonPhase } from "./weather.js";
 import { fmtPrice, tickerSymbol } from "./markets.js";
 import { fmtStockPrice } from "./stocks.js";
+import { convertMeasure, convertOvenTemp, detectGear, shortMeasure, shortIngredient } from "./recipes.js";
 import { spriteForCode, SPRITES } from "./icons.js";
 import { parseSchedule, isMessageActive, isQrMessage } from "./schedule.js";
-import { shortMeasure, shortIngredient } from "./recipes.js";
 
 const DAYS = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"];
 const MONTHS = ["JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE", "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER"];
@@ -330,18 +330,40 @@ export function statsSlide(statsData) {
 }
 
 /**
- * A cake recipe as a short run of slides. A 6x22 board cannot hold one, so the
- * name, the ingredients, the method and a QR for the full thing each get a
- * slide and the rotation does the reading for you.
+ * A cake recipe as a short run of slides.
+ *
+ * The board changes by itself every few seconds, which is fatal for something
+ * you actually cook from. So the run is built to be *walked*: one step per
+ * slide, quantities in the units the reader cooks in, a "before you start" list
+ * worked out from the method, and a dwell long enough to read each one.
  */
-export function recipeSlides(meal) {
+export function recipeSlides(meal, { units = "metric" } = {}) {
   if (!meal) return [];
   const out = [];
+  const BODY = ROWS - 2; // row 0 is the header, the last row holds the corners
 
-  const g = emptyGrid();
-  paintRun(g, 0, 0, "V", 1);
-  paintRun(g, 0, COLS - 1, "V", 1);
-  centerRow(g, 0, "CAKE RECIPE");
+  const shell = (header, code) => {
+    const gr = emptyGrid();
+    centerRow(gr, 0, header);
+    corners(gr, code);
+    return gr;
+  };
+
+  /* ---------- what you need standing there ---------- */
+  const gear = detectGear(meal.instructions);
+  if (gear.length) {
+    const lines = gear.flatMap((t) => wrapText(t, COLS));
+    const chunks = [];
+    for (let at = 0; at < lines.length; at += BODY) chunks.push(lines.slice(at, at + BODY));
+    chunks.forEach((chunk, i) => {
+      const gr = shell(chunks.length > 1 ? `GET READY ${i + 1}/${chunks.length}` : "BEFORE YOU START", "V");
+      chunk.forEach((line, r) => centerRow(gr, r + 1, line));
+      out.push({ id: "recipe-gear", label: "GET READY", grid: gr, dwell: 10 });
+    });
+  }
+
+  /* ---------- the title ---------- */
+  const g = shell("CAKE RECIPE", "V");
   const title = wrapText(String(meal.name).toUpperCase(), COLS).slice(0, 2);
   if (title.length === 1) centerRow(g, 2, title[0]);
   else {
@@ -350,61 +372,83 @@ export function recipeSlides(meal) {
   }
   const tag = [meal.area, ...(meal.tags || [])].filter(Boolean).join(" ").toUpperCase();
   if (tag) centerRow(g, 4, tag.length <= COLS ? tag : tag.slice(0, COLS).replace(/\s\S*$/, ""));
-  const n = (meal.ingredients || []).length;
-  centerRow(g, ROWS - 1, n ? `${n} INGREDIENTS` : "NO LIST");
-  out.push({ id: "recipe", label: "RECIPE", grid: g });
+  const nIn = (meal.ingredients || []).length;
+  const nSt = (meal.instructions || []).length;
+  centerRow(g, ROWS - 1, `${nIn} ITEMS ${nSt} STEPS`);
+  corners(g, "V"); // the footer is long enough to have clipped them
+  out.push({ id: "recipe", label: "RECIPE", grid: g, dwell: 6 });
 
-  // Page by whole items, never mid-sentence: an ingredient or a step is either
-  // fully on one slide or fully on the next.
-  const page = (id, label, header, groups, code, max) => {
-    // one item longer than a whole slide has to be broken somewhere
-    const items = groups.flatMap((g) => (g.length > 4 ? g.reduce((acc, l, i) => (i % 4 ? acc[acc.length - 1].push(l) : acc.push([l]), acc), []) : [g]));
-    const pages = [];
-    let cur = [];
-    for (const g of items) {
-      if (cur.length + g.length > 4 && cur.length) {
-        pages.push(cur);
-        cur = [];
-      }
-      if (pages.length === max) break;
-      cur.push(...g);
-    }
-    if (cur.length && pages.length < max) pages.push(cur);
-
-    const shown = pages.length;
-    const slides = pages.map((lines, i) => {
-      const gr = emptyGrid();
-      centerRow(gr, 0, shown > 1 ? `${header} ${i + 1}/${shown}` : header);
-      lines.forEach((line, r) => centerRow(gr, r + 1, line));
-      corners(gr, code);
-      return { id, label, grid: gr };
-    });
-    // say so when the rotation had to drop the tail, and where to find it
-    const drawn = pages.reduce((n, l) => n + l.length, 0);
-    if (drawn < groups.reduce((n, g) => n + g.length, 0) && slides.length) {
-      centerRow(slides[slides.length - 1].grid, ROWS - 1, "...SEE QR");
-    }
-    return slides;
-  };
-
+  /* ---------- shopping, in the reader's units ---------- */
   const shopping = (meal.ingredients || [])
-    .map((i) => [shortMeasure(i.measure), shortIngredient(i.name)].filter(Boolean).join(" "))
+    .map((i) => [convertMeasure(i.measure, units), shortIngredient(i.name)].filter(Boolean).join(" "))
     .filter(Boolean)
-    .map((t) => wrapText(t, COLS));
-  out.push(...page("recipe-buy", "INGREDIENTS", "YOU WILL NEED", shopping, "Y", 3));
+    .map((t) => wrapText(t, COLS).slice(0, BODY));
+  out.push(...paged("recipe-buy", "SHOPPING", "YOU WILL NEED", shopping, "Y", 4, BODY, 12));
 
-  const method = (meal.instructions || [])
-    .map((s, i) => wrapText(`${i + 1}. ${String(s).toUpperCase()}`, COLS));
-  out.push(...page("recipe-method", "METHOD", "METHOD", method, "G", 4));
+  /* ---------- method, one step per slide ---------- */
+  const steps = (meal.instructions || []).map((s, i) => ({
+    n: i + 1,
+    lines: wrapText(`${i + 1}. ${convertOvenTemp(String(s).toUpperCase(), units)}`, COLS),
+    words: wrapText(String(s).toUpperCase(), COLS).join(" ").split(/\s+/).length,
+  }));
+  steps.forEach((step) => {
+    const chunks = [];
+    for (let at = 0; at < step.lines.length; at += BODY) chunks.push(step.lines.slice(at, at + BODY));
+    chunks.forEach((chunk, ci) => {
+      const head =
+        chunks.length > 1
+          ? `STEP ${step.n} OF ${steps.length} CONT ${ci + 1}/${chunks.length}`
+          : `STEP ${step.n} OF ${steps.length}`;
+      const gr = shell(head, "G");
+      chunk.forEach((line, r) => centerRow(gr, r + 1, line));
+      // reading time, so a long step is not snatched away mid-sentence
+      out.push({ id: "recipe-method", label: "METHOD", grid: gr, dwell: Math.round(9 + Math.min(step.words, 40) * 0.4) });
+    });
+  });
 
-  const q = emptyGrid();
-  centerRow(q, 0, "FULL RECIPE");
+  /* ---------- the full thing on a phone ---------- */
+  const q = shell("FULL RECIPE", "B");
   centerRow(q, 2, "SCAN FOR IT");
   centerRow(q, 4, String(meal.name).toUpperCase().slice(0, COLS));
-  corners(q, "B");
-  out.push({ id: "recipe-qr", label: "QR", grid: q, overlay: meal.url || null });
+  out.push({ id: "recipe-qr", label: "QR", grid: q, overlay: meal.url || null, dwell: 8 });
 
   return out;
+}
+
+/**
+ * Page a list of already-wrapped items. An item is never split across a page
+ * break unless it is on its own and too tall for one slide, and if the run has
+ * to drop the tail it says so rather than quietly lying about the count.
+ */
+function paged(id, label, header, groups, code, max, body, dwell) {
+  const items = groups.flatMap((g) =>
+    g.length > body ? g.reduce((acc, l, i) => (i % body ? acc[acc.length - 1].push(l) : acc.push([l]), acc), []) : [g]
+  );
+  const pages = [];
+  let cur = [];
+  for (const item of items) {
+    if (cur.length + item.length > body && cur.length) {
+      pages.push(cur);
+      cur = [];
+    }
+    if (pages.length === max) break;
+    cur.push(...item);
+  }
+  if (cur.length && pages.length < max) pages.push(cur);
+
+  const shown = pages.length;
+  const slides = pages.map((lines, i) => {
+    const gr = emptyGrid();
+    centerRow(gr, 0, shown > 1 ? `${header} ${i + 1}/${shown}` : header);
+    lines.forEach((line, r) => centerRow(gr, r + 1, line));
+    corners(gr, code);
+    return { id, label, grid: gr, dwell };
+  });
+  const drawn = pages.reduce((n, l) => n + l.length, 0);
+  if (drawn < groups.reduce((n, g) => n + g.length, 0) && slides.length) {
+    centerRow(slides[slides.length - 1].grid, ROWS - 1, "MORE IN THE QR");
+  }
+  return slides;
 }
 
 /** Build the ordered slide list from current settings + live data. */
@@ -440,7 +484,7 @@ export function buildSlides(settings, data, now = new Date()) {
     list.push({ id: "stats", label: "STATS", grid: statsSlide(data.stats) });
   }
   if (S.recipes && data.recipe) {
-    for (const s of recipeSlides(data.recipe)) list.push(s);
+    for (const s of recipeSlides(data.recipe, { units: settings.recipeUnits })) list.push(s);
   }
   if (S.agenda && Array.isArray(settings.agenda) && settings.agenda.length) {
     list.push({ id: "agenda", label: "TODAY", grid: agendaSlide(settings.agenda) });

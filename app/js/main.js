@@ -30,6 +30,7 @@ if (params.has("recipe")) {
   settings.recipe = params.get("recipe") || "";
   settings.slides.recipes = true;
 }
+if (["metric", "us", "as-written"].includes(params.get("runits"))) settings.recipeUnits = params.get("runits");
 if (params.get("league")) settings.league = params.get("league");
 if (params.get("dwell")) settings.dwell = Math.min(120, Math.max(4, parseInt(params.get("dwell"), 10) || settings.dwell));
 if (params.has("quiet")) settings.sound = false;
@@ -212,17 +213,65 @@ async function refreshStocks() {
 }
 
 let recipeBusy = false;
-async function refreshRecipes(manual = false) {
+/**
+ * Load the cake. `reroll` is deliberately opt-in: a board that quietly swaps
+ * the cake halfway through a bake is worse than no board at all. A reload with
+ * no pin gets the same cake back, and only ANOTHER CAKE asks for a different
+ * one.
+ */
+async function refreshRecipes({ reroll = false, manual = false, pin } = {}) {
   if (recipeBusy) return;
+  // the drawer calls this on every settings tweak. Changing the theme, the city
+  // or the flap size must never swap the cake out from under the reader, so an
+  // already-loaded recipe is reused as-is.
+  if (!reroll && !manual && pin === undefined && data.recipe?.id && data.recipe.id === settings.recipeId) {
+    rebuild();
+    return;
+  }
   recipeBusy = true;
+  const previous = data.recipe?.id || "";
+  const wanted = pin !== undefined ? pin : settings.recipe;
   try {
-    data.recipe = await loadRecipe(settings.recipe);
+    data.recipe = await loadRecipe(wanted, { avoid: reroll ? previous : "" });
+    if (reroll && data.recipe?.id === previous) data.recipe = await loadRecipe("", { avoid: previous });
+    if (data.recipe?.id !== previous) {
+      settings.recipeId = data.recipe?.id || "";
+      saveSettings(settings);
+    }
     if (manual) toast(`RECIPE: ${String(data.recipe?.name || "").toUpperCase()}`);
+    rebuild();
+    if (idx >= slides.length) idx = 0;
     softRedraw();
   } catch (e) {
     toast("RECIPE FETCH FAILED");
   } finally {
     recipeBusy = false;
+  }
+}
+
+/** First slide of the recipe run, or -1 when recipes are not on the board. */
+function recipeStart() {
+  return slides.findIndex((s) => /^recipe/.test(s.id));
+}
+function recipeEnd() {
+  let last = -1;
+  slides.forEach((s, i) => {
+    if (/^recipe/.test(s.id)) last = i;
+  });
+  return last;
+}
+/** Jump into the recipe, or out of it if we are already in. */
+function toggleRecipe() {
+  const from = recipeStart();
+  if (from < 0) return toast("RECIPES ARE OFF - TURN THEM ON IN SETUP");
+  const to = recipeEnd();
+  if (idx >= from && idx <= to) {
+    // step out to the first slide that is not part of the recipe
+    let out = from - 1;
+    if (out < 0) out = slides.length - 1;
+    show(out);
+  } else {
+    show(from);
   }
 }
 
@@ -299,7 +348,10 @@ async function show(i, opts = {}) {
 function scheduleNext() {
   clearTimeout(timer);
   if (paused || drawer.isOpen || lockedSlide) return;
-  timer = setTimeout(() => show(idx + 1), Math.max(4, settings.dwell) * 1000);
+  // A recipe slide asks for the time it needs to be read. The room can slow the
+  // board down further, but never below the point where the text is readable.
+  const hint = slides[idx]?.dwell || 0;
+  timer = setTimeout(() => show(idx + 1), Math.max(4, settings.dwell, hint) * 1000);
 }
 
 function next() { show(idx + 1); }
@@ -410,7 +462,8 @@ setInterval(() => {
 
 setInterval(() => refreshWeather(), 10 * 60 * 1000);
 setInterval(() => refreshMarkets(), 5 * 60 * 1000);
-setInterval(() => refreshRecipes(), 6 * 60 * 60 * 1000);
+// No recipe timer on purpose. A recipe does not go stale, and a background
+// reroll would replace the cake on the wall while somebody was reading it.
 setInterval(() => refreshNews(), 15 * 60 * 1000);
 setInterval(() => refreshSports(), 3 * 60 * 1000);
 setInterval(() => refreshStats(), 2 * 60 * 1000);
@@ -434,16 +487,21 @@ const drawer = initDrawer(settings, {
     if (settings.slides.calendar && settings.calendarUrl) refreshCalendar();
     if (settings.slides.nowplaying && settings.nowPlayingUrl) refreshNowPlaying();
     if (settings.slides.recipes) refreshRecipes();
+    const cakeBtn = $("btn-cmd-recipe");
+    if (cakeBtn) cakeBtn.hidden = !settings.slides.recipes;
   },
   onRecipe: (pin) => {
-    // ANOTHER CAKE clears the pin so the next load rolls a different one
+    // ANOTHER CAKE asks for a different one; the empty pin then means "any
+    // cake", and the id we just landed on keeps a reload on the same one
     if (pin === null) {
       settings.recipe = "";
       const inp = document.getElementById("inp-recipe");
       if (inp) inp.value = "";
       saveSettings(settings);
+      refreshRecipes({ reroll: true, manual: true });
+      return;
     }
-    if (settings.slides.recipes) refreshRecipes(true);
+    if (settings.slides.recipes) refreshRecipes({ manual: true });
   },
 });
 
@@ -481,6 +539,7 @@ window.addEventListener("keydown", (e) => {
     case "m": case "M": $("btn-sound").click(); break;
     case "s": case "S": drawer.isOpen ? drawer.close() : drawer.open(); break;
     case "t": case "T": if (touch) touch.open(); break;
+    case "r": case "R": toggleRecipe(); break;
     case "Escape": drawer.close(); break;
   }
 });
@@ -527,7 +586,9 @@ if (!REMOTE_MODE) {
   if (settings.slides.stocks || params.has("demo")) refreshStocks();
   refreshCalendar();
   refreshNowPlaying();
-  if (settings.slides.recipes) refreshRecipes();
+  // with no pin, reuse the cake from last time so a refresh mid-bake does not
+  // change the recipe under you
+  if (settings.slides.recipes) refreshRecipes({ pin: settings.recipeId });
 }
 
 /* ---------- share link (kiosk setup for venues) ---------- */
@@ -569,7 +630,10 @@ if (REMOTE_MODE) {
       prev,
       pause: () => togglePause(),
       sound: () => $("btn-sound").click(),
+      recipe: toggleRecipe,
     },
   });
   $("btn-touch").onclick = () => touch.open();
+  // the phone is the only real control surface for a board on a wall
+  $("btn-cmd-recipe").hidden = !settings.slides.recipes;
 }

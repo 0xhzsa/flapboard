@@ -47,8 +47,11 @@ export const DEFAULTS = {
     departures: false,
     recipes: false,
   },
-  // empty means "pick a random cake on each load"; or a name/id to pin one
+  // empty means "any cake, but keep the same one until you ask for another";
+  // recipeId is the one currently on the wall, so a reload lands on it again
   recipe: "",
+  recipeId: "",
+  recipeUnits: "metric",
   countdowns: [{ label: "SUMMER", date: nextSummer() }],
   agenda: ["08:00 COFFEE FIRST", "09:30 STANDUP", "18:00 GYM"],
   messages: [

@@ -122,6 +122,9 @@ export function initDrawer(settings, { onChange, onRecipe }) {
     onRecipe?.(settings.recipe);
   });
   $("btn-recipe-refresh").onclick = () => onRecipe?.(null);
+  const recipeUnits = $("sel-recipe-units");
+  recipeUnits.value = settings.recipeUnits || "metric";
+  recipeUnits.onchange = bind(() => (settings.recipeUnits = recipeUnits.value));
 
   // markets / sports
   const coins = $("inp-coins");
