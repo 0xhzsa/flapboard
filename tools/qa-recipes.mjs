@@ -222,23 +222,27 @@ check("the box survives a reload", await fresh.evaluate(() => JSON.parse(localSt
 check("the phone gets a cake button", await fresh.evaluate(() => !document.getElementById("btn-cmd-recipe")?.hidden));
 
 // R is the shortcut for the thing you want most of the time: it steps in, and
-// back out again, without turning the feature off
-const landedIn = await (async () => {
-  for (let i = 0; i < 40; i++) {
-    const s = await settled(fresh);
-    if (s.id && !/recipe/.test(s.id)) break;
-    const n = await advance(fresh, s.key);
-    if (n.id && !/recipe/.test(n.id)) { await fresh.keyboard.press("r"); await new Promise((r) => setTimeout(r, 2500)); return (await settled(fresh)).id; }
-  }
+// back out again, without turning the feature off. Leave the drawer first,
+// because a shortcut is ignored while a form field has focus.
+await fresh.evaluate(() => document.activeElement?.blur());
+// start from inside the run, which also proves the recipe has finished loading
+let inside = null;
+for (let i = 0; i < 60 && !inside; i++) {
+  const s = await settled(fresh);
+  if (/recipe/.test(s.id || "")) inside = s;
+  else await advance(fresh, s.key);
+}
+check("found a recipe frame to start from", !!inside, "never reached the recipe run");
+if (inside) {
   await fresh.keyboard.press("r");
   await new Promise((r) => setTimeout(r, 2500));
-  return (await settled(fresh)).id;
-})();
-check("R jumps into the recipe run", /^recipe/.test(landedIn || ""), `landed on ${landedIn}`);
-await fresh.keyboard.press("r");
-await new Promise((r) => setTimeout(r, 2500));
-const jumpedOut = (await settled(fresh)).id;
-check("R jumps back out again", !/recipe/.test(jumpedOut || ""), `landed on ${jumpedOut}`);
+  const jumpedOut = (await settled(fresh)).id;
+  check("R jumps out of the recipe run", !/recipe/.test(jumpedOut || ""), `landed on ${jumpedOut}`);
+  await fresh.keyboard.press("r");
+  await new Promise((r) => setTimeout(r, 2500));
+  const jumpedIn = (await settled(fresh)).id;
+  check("R jumps back in", /^recipe/.test(jumpedIn || ""), `landed on ${jumpedIn}`);
+}
 check("recipes are still on afterwards", await fresh.evaluate(() => JSON.parse(localStorage.getItem("flapboard.v2") || "{}")?.slides?.recipes === true));
 await fresh.close();
 
