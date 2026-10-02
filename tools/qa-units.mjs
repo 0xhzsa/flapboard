@@ -68,6 +68,14 @@ eq("¼ cup is understood", convertMeasure("¼ cup cocoa", "metric"), "60ML");
 eq("½ stays out of the charset", /[^\x20-\x7E]/.test(shortMeasure("½ cup")), false);
 eq("1½ becomes 1 1/2", shortMeasure("1½ cups"), "1 1/2 CUPS");
 
+/* ---------------- what the board shows ---------------- */
+// the shopping line is the measure plus the ingredient name, so "4 large eggs"
+// becomes "4" + "EGGS" and the unit is never lost
+eq("noise words are dropped", shortMeasure("4 large eggs"), "4");
+eq("real units survive", shortMeasure("2 tbsp olive oil"), "2 TBSP");
+eq("the number and the name make the measure", `${convertMeasure("4 milk", "metric")} milk`.toUpperCase(), "4 MILK");
+eq("to taste is not a number", convertMeasure("to taste", "metric"), "TO TASTE");
+
 /* ---------------- oven temperatures ---------------- */
 eq("metric 180C stays", convertOvenTemp("heat the oven to 180C", "metric"), "heat the oven to 180C");
 eq("metric 350F becomes 180C", convertOvenTemp("bake at 350F for 20 mins", "metric"), "bake at 180C for 20 mins");
