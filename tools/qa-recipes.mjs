@@ -49,6 +49,9 @@ async function settled() {
 const results = [];
 const check = (name, ok, detail = "") => results.push({ name, ok, detail });
 
+// strip any query string so the drawer path is tested from a clean slate
+const origin = (u) => u.split("?")[0];
+
 await page.goto(url, { waitUntil: "domcontentloaded", timeout: 60000 });
 await new Promise((r) => setTimeout(r, 12000));
 
@@ -87,6 +90,34 @@ const badCount = headers.filter((h) => {
 check("page counts match the pages shown", badCount.length === 0, `bad headers: ${[...new Set(badCount)].join(", ")}`);
 check("no mid-flip garbage in a settled frame", !/[^\x20-\x7E\n]/.test(text));
 check("no page errors", errors.length === 0, errors.join(" | "));
+
+// the path a real visitor takes: no URL params, tick the box in the drawer
+const fresh = await browser.newPage();
+await fresh.setViewport({ width: 1600, height: 900 });
+await fresh.goto(origin(url), { waitUntil: "domcontentloaded", timeout: 60000 });
+await new Promise((r) => setTimeout(r, 7000));
+const before = new Set();
+for (let i = 0; i < 30; i++) {
+  const id = await fresh.evaluate(() => window.__slideId);
+  if (id) before.add(id);
+  await fresh.keyboard.press("ArrowRight");
+  await new Promise((r) => setTimeout(r, 200));
+}
+check("off by default, so it does not hijack the rotation", ![...before].some((i) => /recipe/i.test(i)), `saw ${[...before].filter((i) => /recipe/i.test(i)).join(", ")}`);
+
+await fresh.evaluate(() => document.getElementById("chk-recipes").click());
+await new Promise((r) => setTimeout(r, 11000));
+const after = new Set();
+for (let i = 0; i < 90; i++) {
+  const id = await fresh.evaluate(() => window.__slideId);
+  if (id) after.add(id);
+  await fresh.keyboard.press("ArrowRight");
+  await new Promise((r) => setTimeout(r, 200));
+}
+const turnedOn = [...after].filter((i) => /recipe/i.test(i));
+check("ticking the drawer box turns recipes on", turnedOn.length >= 2, `saw ${turnedOn.join(", ") || "nothing"}`);
+check("the box survives a reload", await fresh.evaluate(() => JSON.parse(localStorage.getItem("flapboard.v2") || "{}")?.slides?.recipes === true));
+await fresh.close();
 
 for (const { name, ok, detail } of results) {
   console.log(`${ok ? "PASS" : "FAIL"}  ${name}${detail && !ok ? `  -> ${detail}` : ""}`);

@@ -433,6 +433,7 @@ const drawer = initDrawer(settings, {
     if (settings.slides.stats && settings.statsUrl) refreshStats();
     if (settings.slides.calendar && settings.calendarUrl) refreshCalendar();
     if (settings.slides.nowplaying && settings.nowPlayingUrl) refreshNowPlaying();
+    if (settings.slides.recipes) refreshRecipes();
   },
   onRecipe: (pin) => {
     // ANOTHER CAKE clears the pin so the next load rolls a different one
